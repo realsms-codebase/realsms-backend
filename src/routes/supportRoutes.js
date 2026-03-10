@@ -13,10 +13,10 @@ const { protect, adminOnly } = require("../middleware/adminAuthMiddleware");
 
 
 // user send message
-router.post("/send", protect, sendMessage);
+router.post("/send", sendMessage);
 
 // user fetch messages
-router.get("/user", protect, getUserMessages);
+router.get("/user", getUserMessages);
 
 // admin fetch all chats
 router.get("/admin", protect, adminOnly, getAdminMessages);
