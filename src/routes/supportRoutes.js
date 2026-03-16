@@ -53,7 +53,6 @@
 // module.exports = router;
 
 
-// routes/supportRoutes.js
 const express = require("express");
 const router = express.Router();
 
@@ -87,6 +86,6 @@ router.get("/admin/unread", protect, adminOnly, getUnreadMessages);
 router.post("/reply", protect, adminOnly, adminReply);
 
 // Admin marks messages as read
-router.put("/admin/read/:userId", protect, adminOnly markMessagesAsRead);
+router.put("/admin/read/:userId", protect, adminOnly, markMessagesAsRead); // <-- FIXED comma
 
 module.exports = router;
