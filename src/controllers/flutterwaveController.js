@@ -13,8 +13,8 @@ exports.initializePayment = async (req, res) => {
   try {
     const { amount } = req.body;
 
-    if (!amount || amount < 100) {
-      return res.status(400).json({ message: "Invalid amount" });
+    if (!amount || amount < 1000) {
+      return res.status(400).json({ message: "Minimum deposit is ₦1,000" });
     }
 
     const tx_ref = "FLW_" + Date.now() + "_" + req.user._id;
