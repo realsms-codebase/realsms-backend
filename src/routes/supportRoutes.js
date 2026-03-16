@@ -67,7 +67,7 @@ const {
 } = require("../controllers/supportController");
 
 const { protectSupportUser } = require("../middleware/supportAuthMiddleware"); // for normal users
-const { adminProtect } = require("../middleware/adminAuthMiddleware"); // main admin auth
+const { protect, adminOnly } = require("../middleware/adminAuthMiddleware"); // main admin auth
 
 // ================= USER SUPPORT ROUTES =================
 // User sends a support message
@@ -78,15 +78,15 @@ router.get("/user", protectSupportUser, getUserMessages);
 
 // ================= ADMIN SUPPORT ROUTES =================
 // Admin fetches all messages
-router.get("/admin", adminProtect, getAdminMessages);
+router.get("/admin", protect, adminOnly, getAdminMessages);
 
 // Admin fetches only unread messages
-router.get("/admin/unread", adminProtect, getUnreadMessages);
+router.get("/admin/unread", protect, adminOnly, getUnreadMessages);
 
 // Admin replies to a user
-router.post("/reply", adminProtect, adminReply);
+router.post("/reply", protect, adminOnly, adminReply);
 
 // Admin marks messages as read
-router.put("/admin/read/:userId", adminProtect, markMessagesAsRead);
+router.put("/admin/read/:userId", protect, adminOnly markMessagesAsRead);
 
 module.exports = router;
