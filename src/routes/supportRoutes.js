@@ -8,6 +8,7 @@ const {
   getAdminMessages,
   getUnreadMessages,
   markMessagesAsRead,
+  markAdminMessagesAsRead,
 } = require("../controllers/supportController");
 
 const { protectSupportUser } = require("../middleware/supportAuthMiddleware"); // for normal users
@@ -16,6 +17,8 @@ const { protect, adminOnly } = require("../middleware/adminAuthMiddleware"); // 
 // ================= USER SUPPORT ROUTES =================
 // User sends a support message
 router.post("/send", protectSupportUser, sendMessage);
+
+router.put("/user/read", protectSupportUser, markAdminMessagesAsRead);
 
 // User gets their chat history
 router.get("/user", protectSupportUser, getUserMessages);
