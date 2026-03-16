@@ -9,6 +9,7 @@ const {
   getUnreadMessages,
   markMessagesAsRead,
   markAdminMessagesAsRead,
+  getUnreadCount,
 } = require("../controllers/supportController");
 
 const { protectSupportUser } = require("../middleware/supportAuthMiddleware"); // for normal users
@@ -19,6 +20,9 @@ const { protect, adminOnly } = require("../middleware/adminAuthMiddleware"); // 
 router.post("/send", protectSupportUser, sendMessage);
 
 router.put("/user/read", protectSupportUser, markAdminMessagesAsRead);
+
+// User unread messages count (for badge)
+router.get("/user/unread", protectSupportUser, getUnreadCount);
 
 // User gets their chat history
 router.get("/user", protectSupportUser, getUserMessages);
