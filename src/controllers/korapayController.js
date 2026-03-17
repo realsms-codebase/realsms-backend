@@ -364,7 +364,7 @@ const MIN_AMOUNT = 200;
 const MAX_AMOUNT = 1000000;
 
 // ======================================
-// 1️⃣ Initialize Payment
+// 1️⃣ INITIALIZE PAYMENT
 // ======================================
 exports.initializePayment = async (req, res) => {
   try {
@@ -397,7 +397,8 @@ exports.initializePayment = async (req, res) => {
         amount: numericAmount,
         currency: "NGN",
         reference,
-        redirect_url: `${BACKEND_URL}/api/korapay/verify?reference=${reference}`,
+        // ✅ IMPORTANT: no manual query params
+        redirect_url: `${BACKEND_URL}/api/korapay/verify`,
         customer: {
           email: req.user.email,
           name: req.user.name || req.user.email,
@@ -448,11 +449,12 @@ exports.initializePayment = async (req, res) => {
 };
 
 // ======================================
-// 2️⃣ Verify Payment (FULL FIXED)
+// 2️⃣ VERIFY PAYMENT (RETRY FIX APPLIED)
 // ======================================
 exports.verifyPayment = async (req, res) => {
   try {
-    const { reference } = req.query;
+    const reference =
+      req.query.reference || req.query.tx_ref || req.query.trxref;
 
     if (!reference) {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
@@ -469,71 +471,69 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-success`);
     }
 
-    const response = await axios.get(
-      `https://api.korapay.com/merchant/api/v1/charges/${reference}`,
-      {
-        headers: {
-          Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
+    let paymentData = null;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    // 🔁 RETRY LOOP (KEY FIX)
+    while (attempts < maxAttempts) {
+      try {
+        const response = await axios.get(
+          `https://api.korapay.com/merchant/api/v1/transactions/verify/${reference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
+            },
+          }
+        );
+
+        paymentData = response.data?.data;
+
+        console.log(
+          `🔍 Attempt ${attempts + 1}:`,
+          paymentData?.status
+        );
+
+        if (paymentData?.status === "success") break;
+
+      } catch (err) {
+        console.log("Retry error:", err.message);
       }
-    );
 
-    // 🔍 FULL DEBUG LOG
-    console.log(
-      "🔍 FULL KORAPAY RESPONSE:",
-      JSON.stringify(response.data, null, 2)
-    );
-
-    const paymentData = response.data?.data;
-
-    if (!paymentData) {
-      transaction.status = "FAILED";
-      await transaction.save();
-      return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      attempts++;
     }
 
     // ======================================
-    // ✅ STATUS FIX (VERY IMPORTANT)
+    // ⏳ STILL PENDING → DO NOT FAIL
     // ======================================
-    const status =
-      paymentData.status ||
-      paymentData?.charges?.status;
+    if (!paymentData || paymentData.status !== "success") {
+      console.log("⏳ Payment still pending");
 
-    console.log("Status:", paymentData.status);
-    console.log("Charge Status:", paymentData?.charges?.status);
-
-    const validStatuses = ["success", "successful", "completed"];
-
-    if (!validStatuses.includes(String(status).toLowerCase())) {
-      console.log("❌ Invalid status:", status);
-      transaction.status = "FAILED";
-      await transaction.save();
-      return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+      return res.redirect(`${FRONTEND_URL}/fund-pending`);
     }
 
     // ======================================
-    // ✅ AMOUNT FIX
+    // ✅ VALIDATION
     // ======================================
-    const paidAmount = parseFloat(paymentData.amount);
-    const expectedAmount = parseFloat(transaction.amount);
-
-    console.log("Paid:", paidAmount, "Expected:", expectedAmount);
+    const paidAmount = Number(paymentData.amount);
+    const expectedAmount = Number(transaction.amount);
 
     if (paidAmount !== expectedAmount) {
       console.log("❌ Amount mismatch");
+
       transaction.status = "FAILED";
       await transaction.save();
+
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // ======================================
-    // ✅ CURRENCY FIX
-    // ======================================
-    if (paymentData.currency?.toUpperCase() !== "NGN") {
-      console.log("❌ Currency mismatch:", paymentData.currency);
+    if (paymentData.currency !== "NGN") {
+      console.log("❌ Currency mismatch");
+
       transaction.status = "FAILED";
       await transaction.save();
+
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
@@ -543,8 +543,6 @@ exports.verifyPayment = async (req, res) => {
     const user = await User.findById(transaction.user);
 
     if (!user) {
-      transaction.status = "FAILED";
-      await transaction.save();
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
@@ -560,7 +558,7 @@ exports.verifyPayment = async (req, res) => {
     return res.redirect(`${FRONTEND_URL}/fund-success`);
   } catch (error) {
     console.error(
-      "❌ Korapay Verify Error:",
+      "❌ Verify Error:",
       error.response?.data || error.message
     );
 
