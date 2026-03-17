@@ -31,6 +31,9 @@ router.get(
 // Confirm pending transaction
 router.patch("/transactions/:id/confirm", protect, adminOnly, adminController.confirmTransaction);
 
+// Delete successful transaction
+router.delete("/transactions/:id", protect, adminOnly, adminController.deleteTransaction);
+
 // ==============================
 // Orders
 // ==============================
