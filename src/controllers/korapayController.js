@@ -352,25 +352,33 @@
 //   }
 // };
 
+// controllers/korapayController.js
+
 const axios = require("axios");
+const crypto = require("crypto");
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 
 const KORAPAY_SECRET_KEY = process.env.KORAPAY_SECRET_KEY;
+const KORAPAY_WEBHOOK_SECRET = process.env.KORAPAY_WEBHOOK_SECRET;
+
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 
 const MIN_AMOUNT = 200;
 const MAX_AMOUNT = 1000000;
 
-// ======================================
-// 1️⃣ Initialize Payment
-// ======================================
+const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
+
+/* ======================================================
+   1️⃣ INITIALIZE PAYMENT
+====================================================== */
 exports.initializePayment = async (req, res) => {
   try {
     const { amount } = req.body;
     const numericAmount = Number(amount);
 
+    // ✅ Validation
     if (!numericAmount || numericAmount < MIN_AMOUNT) {
       return res.status(400).json({
         message: `Minimum amount is ₦${MIN_AMOUNT.toLocaleString()}`,
@@ -384,31 +392,27 @@ exports.initializePayment = async (req, res) => {
     }
 
     if (!req.user || !req.user.email) {
-      return res.status(401).json({ message: "Unauthorized: missing user info" });
+      return res.status(401).json({
+        message: "Unauthorized: missing user info",
+      });
     }
-
-    // Generate internal merchant reference for tracking
-    const merchantReference = `rsms-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 
     const payload = {
       amount: numericAmount,
       currency: "NGN",
-      reference: merchantReference, // internal reference
       redirect_url: `${BACKEND_URL}/api/korapay/verify`,
       customer: {
         email: req.user.email,
         name: req.user.name || req.user.email,
       },
       metadata: {
-        userId: req.user._id,
-        source: "RealSMS Wallet Funding",
+        userId: req.user._id.toString(),
+        source: "Wallet Funding",
       },
     };
 
-    console.log("Korapay Init Payload:", JSON.stringify(payload, null, 2));
-
     const response = await axios.post(
-      "https://api.korapay.com/merchant/api/v1/charges/initialize",
+      `${KORAPAY_BASE_URL}/charges/initialize`,
       payload,
       {
         headers: {
@@ -419,58 +423,61 @@ exports.initializePayment = async (req, res) => {
     );
 
     const checkoutUrl = response.data?.data?.checkout_url;
-    const korapayReference = response.data?.data?.reference; // KPY-SET-XXXX
+    const reference = response.data?.data?.reference; // ✅ KPY-XXXX
 
-    if (!checkoutUrl || !korapayReference) {
-      console.error("Korapay Init Failed Response:", response.data);
+    if (!checkoutUrl || !reference) {
       return res.status(400).json({
         message: "Unable to initialize payment",
         detail: response.data,
       });
     }
 
-    // Save transaction
+    // ✅ Save transaction (Korapay reference only)
     await Transaction.create({
       user: req.user._id,
-      merchantReference,
-      korapayReference, // ✅ official Korapay reference
+      reference,
       amount: numericAmount,
       currency: "NGN",
       provider: "KORAPAY",
       status: "PENDING",
     });
 
-    return res.status(200).json({ checkout_url: checkoutUrl });
+    return res.status(200).json({
+      checkout_url: checkoutUrl,
+    });
   } catch (error) {
-    console.error("Korapay Init Error:", error.response?.data || error.message);
+    console.error("Init Error:", error.response?.data || error.message);
     return res.status(500).json({
-      message: "Korapay payment initialization failed",
+      message: "Korapay initialization failed",
       detail: error.response?.data || error.message,
     });
   }
 };
 
-// ======================================
-// 2️⃣ Verify Payment
-// ======================================
+/* ======================================================
+   2️⃣ VERIFY PAYMENT (REDIRECT)
+====================================================== */
 exports.verifyPayment = async (req, res) => {
   try {
-    const merchantReference = req.query.reference; // this comes from redirect
+    const reference = req.query.reference;
 
-    if (!merchantReference) {
+    if (!reference) {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    const transaction = await Transaction.findOne({ merchantReference });
-    if (!transaction) return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+    const transaction = await Transaction.findOne({ reference });
 
+    if (!transaction) {
+      return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+    }
+
+    // ✅ Prevent double credit
     if (transaction.status === "SUCCESS") {
       return res.redirect(`${FRONTEND_URL}/fund-success`);
     }
 
-    // Use the official Korapay reference for verification
     const response = await axios.get(
-      `https://api.korapay.com/merchant/api/v1/transactions/verify/${transaction.korapayReference}`,
+      `${KORAPAY_BASE_URL}/transactions/verify/${reference}`,
       {
         headers: {
           Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
@@ -479,7 +486,6 @@ exports.verifyPayment = async (req, res) => {
     );
 
     const paymentData = response.data?.data;
-    console.log("Korapay Verify Response:", paymentData);
 
     if (!paymentData || paymentData.status !== "success") {
       transaction.status = "FAILED";
@@ -487,6 +493,7 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
+    // ✅ Validate integrity
     if (Number(paymentData.amount) !== Number(transaction.amount)) {
       transaction.status = "FAILED";
       await transaction.save();
@@ -499,8 +506,9 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // Credit user wallet
+    // ✅ Credit wallet
     const user = await User.findById(transaction.user);
+
     if (!user) {
       transaction.status = "FAILED";
       await transaction.save();
@@ -514,10 +522,11 @@ exports.verifyPayment = async (req, res) => {
     transaction.processedAt = new Date();
     await transaction.save();
 
-    console.log("✅ Wallet credited successfully");
+    console.log("✅ Wallet credited via redirect");
+
     return res.redirect(`${FRONTEND_URL}/fund-success`);
   } catch (error) {
-    console.error("Korapay Verify Error:", error.response?.data || error.message);
+    console.error("Verify Error:", error.response?.data || error.message);
     return res.redirect(`${FRONTEND_URL}/fund-cancel`);
   }
 };
