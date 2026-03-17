@@ -387,15 +387,15 @@ exports.initializePayment = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized: missing user info" });
     }
 
-    // Merchant reference for your DB
-    const merchantReference = `rsms-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    // Generate unique merchant reference
+    const merchantReference = `rsms-${Date.now()}-${Math.floor(Math.random() * 1000000)}`.toString();
 
-    // Payload for Korapay
+    // Prepare payload for Korapay
     const payload = {
       amount: numericAmount,
       currency: "NGN",
-      reference: merchantReference, // merchant reference
-      redirect_url: `${BACKEND_URL}/api/korapay/verify`, // Korapay will redirect here
+      reference: merchantReference, // MUST EXIST
+      redirect_url: `${BACKEND_URL}/api/korapay/verify`,
       customer: {
         email: req.user.email,
         name: req.user.name || req.user.email,
@@ -406,7 +406,7 @@ exports.initializePayment = async (req, res) => {
       },
     };
 
-    console.log("Korapay Init Payload:", payload);
+    console.log("Korapay Init Payload:", JSON.stringify(payload, null, 2));
 
     const response = await axios.post(
       "https://api.korapay.com/merchant/api/v1/charges/initialize",
@@ -419,8 +419,8 @@ exports.initializePayment = async (req, res) => {
       }
     );
 
-    const korapayReference = response.data?.data?.reference;
     const checkoutUrl = response.data?.data?.checkout_url;
+    const korapayReference = response.data?.data?.reference;
 
     if (!checkoutUrl || !korapayReference) {
       console.error("Korapay Init Failed Response:", response.data);
@@ -430,7 +430,7 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // Save transaction with both references
+    // Save transaction in DB
     await Transaction.create({
       user: req.user._id,
       merchantReference,
@@ -456,52 +456,36 @@ exports.initializePayment = async (req, res) => {
 // ======================================
 exports.verifyPayment = async (req, res) => {
   try {
-    const merchantReference =
-      req.query.reference || req.query.tx_ref || req.query.trxref;
+    const merchantReference = req.query.reference || req.query.tx_ref || req.query.trxref;
 
     if (!merchantReference) {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // Find transaction by merchant reference
     const transaction = await Transaction.findOne({ merchantReference });
     if (!transaction) return res.redirect(`${FRONTEND_URL}/fund-cancel`);
 
-    // Prevent double credit
     if (transaction.status === "SUCCESS") {
       return res.redirect(`${FRONTEND_URL}/fund-success`);
     }
 
-    // Retry loop for delayed payment confirmation
-    let paymentData = null;
-    let attempts = 0;
-    const maxAttempts = 5;
-
-    while (attempts < maxAttempts) {
-      try {
-        const response = await axios.get(
-          `https://api.korapay.com/merchant/api/v1/transactions/verify/${transaction.korapayReference}`,
-          {
-            headers: {
-              Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
-            },
-          }
-        );
-        paymentData = response.data?.data;
-        console.log(`🔍 Attempt ${attempts + 1}:`, paymentData?.status);
-
-        if (paymentData?.status === "success") break;
-      } catch (err) {
-        console.log("Retry error:", err.message);
+    // Get Korapay transaction data
+    const response = await axios.get(
+      `https://api.korapay.com/merchant/api/v1/transactions/verify/${transaction.korapayReference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
+        },
       }
+    );
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      attempts++;
-    }
+    const paymentData = response.data?.data;
+    console.log("Korapay Verify Response:", paymentData);
 
     if (!paymentData || paymentData.status !== "success") {
-      console.log("⏳ Payment still pending");
-      return res.redirect(`${FRONTEND_URL}/fund-pending`);
+      transaction.status = "FAILED";
+      await transaction.save();
+      return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
     // Validate amount & currency
@@ -519,7 +503,11 @@ exports.verifyPayment = async (req, res) => {
 
     // Credit user wallet
     const user = await User.findById(transaction.user);
-    if (!user) return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+    if (!user) {
+      transaction.status = "FAILED";
+      await transaction.save();
+      return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+    }
 
     user.walletBalanceNGN += transaction.amount;
     await user.save();
