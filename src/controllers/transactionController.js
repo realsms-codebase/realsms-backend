@@ -32,3 +32,46 @@ exports.getUserTransactionStats = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+/* =========================
+   TRANSACTION HISTORY
+========================= */
+
+exports.getUserTransactions = async (req, res) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user._id);
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const filter = { user: userId };
+
+    /* Optional filter by type */
+    if (req.query.type && req.query.type !== "all") {
+      filter.type = req.query.type;
+    }
+
+    const transactions = await Transaction.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await Transaction.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: transactions,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalTransactions: total,
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching transactions:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
