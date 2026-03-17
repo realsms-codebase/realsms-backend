@@ -267,45 +267,43 @@ exports.confirmTransaction = async (req, res) => {
   }
 };
 
-// /* ==============================
-//    GET ALL ORDERS
-// ============================== */
-// exports.getAllOrders = async (req, res) => {
-//   try {
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = parseInt(req.query.limit) || 8;
-//     const search = req.query.search || "";
+/* ==============================
+   DELETE TRANSACTION
+============================== */
+exports.deleteTransaction = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-//     const query = {};
+    const transaction = await Transaction.findById(id);
 
-//     // Search by user's email or OTP
-//     if (search) {
-//       query.$or = [
-//         { otp: { $regex: search, $options: "i" } },
-//         { /* search by user email */ },
-//       ];
-//     }
+    if (!transaction) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Transaction not found" });
+    }
 
-//     // Populate user email
-//     const orders = await Order.find(query)
-//       .populate("user", "email")
-//       .sort({ createdAt: -1 })
-//       .skip((page - 1) * limit)
-//       .limit(limit);
+    // Only allow deleting successful transactions (optional safety)
+    if (transaction.status !== "SUCCESS") {
+      return res.status(400).json({
+        success: false,
+        message: "Only successful transactions can be deleted",
+      });
+    }
 
-//     const total = await Order.countDocuments(query);
+    await Transaction.findByIdAndDelete(id);
 
-//     res.json({
-//       data: orders,
-//       page,
-//       total,
-//       totalPages: Math.ceil(total / limit),
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Failed to fetch orders" });
-//   }
-// };
+    res.json({
+      success: true,
+      message: "Transaction deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete transaction error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete transaction",
+    });
+  }
+};
 
 /* ==============================
    GET ALL ORDERS (WITH SEARCH & PAGINATION)
