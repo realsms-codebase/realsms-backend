@@ -293,7 +293,7 @@ const MAX_AMOUNT = 1000000;
 const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
 
 /* ======================================================
-   1️⃣ INITIALIZE PAYMENT (NO CUSTOM REFERENCE)
+   1️⃣ INITIALIZE PAYMENT
 ====================================================== */
 exports.initializePayment = async (req, res) => {
   try {
@@ -316,9 +316,13 @@ exports.initializePayment = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // ✅ ONE reference (unique)
+    const reference = `RSMS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
     const payload = {
       amount: numericAmount,
       currency: "NGN",
+      reference, // ✅ REQUIRED by Korapay
       redirect_url: `${BACKEND_URL}/api/korapay/verify`,
       customer: {
         email: req.user.email,
@@ -341,16 +345,15 @@ exports.initializePayment = async (req, res) => {
     );
 
     const checkoutUrl = response.data?.data?.checkout_url;
-    const reference = response.data?.data?.reference; // ✅ ONLY reference
 
-    if (!checkoutUrl || !reference) {
+    if (!checkoutUrl) {
       return res.status(400).json({
         message: "Initialization failed",
         detail: response.data,
       });
     }
 
-    console.log("✅ Korapay Ref:", reference);
+    console.log("✅ Reference:", reference);
 
     await Transaction.create({
       user: req.user._id,
@@ -375,7 +378,7 @@ exports.initializePayment = async (req, res) => {
 };
 
 /* ======================================================
-   2️⃣ VERIFY PAYMENT (REDIRECT SAFE)
+   2️⃣ VERIFY PAYMENT (REDIRECT)
 ====================================================== */
 exports.verifyPayment = async (req, res) => {
   try {
@@ -396,7 +399,7 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // ✅ prevent double credit
+    // ✅ prevent duplicate credit
     if (transaction.status === "SUCCESS") {
       return res.redirect(`${FRONTEND_URL}/fund-success`);
     }
@@ -462,7 +465,7 @@ exports.verifyPayment = async (req, res) => {
 };
 
 /* ======================================================
-   3️⃣ WEBHOOK (PRIMARY SOURCE OF TRUTH)
+   3️⃣ WEBHOOK
 ====================================================== */
 exports.korapayWebhook = async (req, res) => {
   try {
@@ -493,7 +496,7 @@ exports.korapayWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // 🔒 VERIFY AGAIN (SECURITY)
+    // 🔒 verify again
     const response = await axios.get(
       `${KORAPAY_BASE_URL}/transactions/verify/${reference}`,
       {
