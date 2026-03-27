@@ -4,6 +4,6 @@ const { createLog, getLogs, deleteLog, } = require("../controllers/logController
 
 router.post("/", createLog);
 router.get("/", getLogs);
-router.delete("/log/:id", deleteLog); 
+router.delete("/:id", deleteLog); 
 
 module.exports = router;
