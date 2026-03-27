@@ -19,3 +19,20 @@ exports.getLogs = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ✅ DELETE LOG
+exports.deleteLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const log = await Log.findByIdAndDelete(id);
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    res.json({ message: "Log deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
