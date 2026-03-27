@@ -18,6 +18,7 @@ const transactionRoutes = require("./routes/transactionsRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
+const logRoutes = require("./routes/logRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 
 // CRON JOBS
@@ -117,6 +118,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/smspool', smspoolRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/log", logRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
