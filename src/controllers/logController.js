@@ -36,3 +36,29 @@ exports.deleteLog = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// ✅ UPDATE LOG
+exports.updateLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedLog = await Log.findByIdAndUpdate(
+      id,
+      {
+        ...req.body,
+        stock: req.body.details
+          ? req.body.details.split("\n").length
+          : req.body.stock,
+      },
+      { new: true }
+    );
+
+    if (!updatedLog) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    res.json(updatedLog);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
