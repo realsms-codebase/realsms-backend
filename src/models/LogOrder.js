@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const logOrderSchema = new mongoose.Schema(
   {
@@ -7,22 +7,17 @@ const logOrderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Log",
       required: true,
     },
-
     name: String,
     platform: String,
-
     price: Number,
     quantity: Number,
     totalCost: Number,
-
     details: String,
-
     status: {
       type: String,
       default: "delivered",
@@ -31,4 +26,4 @@ const logOrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("LogOrder", logOrderSchema);
+module.exports = mongoose.model("LogOrder", logOrderSchema);
