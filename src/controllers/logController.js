@@ -163,87 +163,14 @@
 //   }
 // };
 
+const crypto = require("crypto");
 const Log = require("../models/Log");
 const LogOrder = require("../models/LogOrder");
-const { nanoid } = await import("nanoid"); 
-// =======================
-// CREATE LOG
-// =======================
-exports.createLog = async (req, res) => {
-  try {
-    const log = await Log.create({
-      ...req.body,
-      stock: req.body.details
-        ? req.body.details.split("\n").filter((d) => d.trim() !== "").length
-        : req.body.stock,
-    });
 
-    res.status(201).json(log);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =======================
-// GET ALL LOGS
-// =======================
-exports.getLogs = async (req, res) => {
-  try {
-    const logs = await Log.find().sort({ createdAt: -1 });
-    res.json(logs);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =======================
-// DELETE LOG
-// =======================
-exports.deleteLog = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const log = await Log.findByIdAndDelete(id);
-
-    if (!log) {
-      return res.status(404).json({ message: "Log not found" });
-    }
-
-    res.json({ message: "Log deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =======================
-// UPDATE LOG
-// =======================
-exports.updateLog = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const updatedLog = await Log.findByIdAndUpdate(
-      id,
-      {
-        ...req.body,
-        stock: req.body.details
-          ? req.body.details
-              .split("\n")
-              .filter((d) => d.trim() !== "").length
-          : req.body.stock,
-      },
-      { new: true }
-    );
-
-    if (!updatedLog) {
-      return res.status(404).json({ message: "Log not found" });
-    }
-
-    res.json(updatedLog);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
+// Helper function to generate order ID
+function generateOrderId() {
+  return `ORD-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
+}
 
 // =======================
 // BUY LOG (MAIN LOGIC)
@@ -284,7 +211,7 @@ exports.buyLog = async (req, res) => {
     const totalCost = log.price * quantity;
 
     // ✅ Generate unique order ID
-    const orderId = `ORD-${Date.now()}-${nanoid(6)}`;
+    const orderId = generateOrderId();
 
     // Save order history
     const order = await LogOrder.create({
@@ -308,35 +235,6 @@ exports.buyLog = async (req, res) => {
     });
   } catch (err) {
     console.error("BUY LOG ERROR:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =======================
-// GET ORDER HISTORY
-// =======================
-exports.getLogOrders = async (req, res) => {
-  try {
-    // 👉 Use { userId: req.user.id } if auth enabled
-    const orders = await LogOrder.find().sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      data: orders.map((o) => ({
-        orderId: o.orderId,
-        productId: o.productId,
-        name: o.name,
-        platform: o.platform,
-        price: o.price,
-        quantity: o.quantity,
-        totalCost: o.totalCost,
-        details: o.details,
-        status: o.status,
-        createdAt: o.createdAt,
-      })),
-    });
-  } catch (err) {
-    console.error("GET ORDERS ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 };
