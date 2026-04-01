@@ -254,32 +254,6 @@ exports.buyLog = async (req, res) => {
   }
 };
 
-    // =======================
-    // ✅ SAVE ORDER HISTORY
-    // =======================
-    await LogOrder.create({
-      userId: req.user?.id || null, // works even without auth
-      logId: log._id,
-      name: log.name,
-      platform: log.platform,
-      price: log.price,
-      quantity,
-      totalCost,
-      details: purchasedText,
-      status: "delivered",
-    });
-
-    res.json({
-      success: true,
-      purchased: purchasedText,
-      remainingStock: log.stock,
-    });
-  } catch (err) {
-    console.error("BUY LOG ERROR:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
 // =======================
 // GET ORDER HISTORY
 // =======================
