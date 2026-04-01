@@ -5,19 +5,24 @@ const logOrderSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null, // ✅ FIX: no more validation error
     },
+
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Log",
-      required: true,
+      required: true, // keep required
     },
+
     name: String,
     platform: String,
+
     price: Number,
     quantity: Number,
     totalCost: Number,
+
     details: String,
+
     status: {
       type: String,
       default: "delivered",
