@@ -5,13 +5,13 @@ const logOrderSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null, // works even without authentication
+      default: null, // ✅ FIX: no more validation error
     },
 
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Log",
-      required: true, // must have a reference to the log
+      required: true, // keep required
     },
 
     name: String,
