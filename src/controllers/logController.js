@@ -62,3 +62,47 @@ exports.updateLog = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// BUY LOG (DEDUCT STOCK + RETURN DETAILS)
+exports.buyLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+
+    const log = await Log.findById(id);
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    // Split available details
+    let detailsArray = log.details
+      .split("\n")
+      .map((d) => d.trim())
+      .filter((d) => d !== "");
+
+    if (detailsArray.length < quantity) {
+      return res.status(400).json({ message: "Not enough stock" });
+    }
+
+    // Take requested quantity
+    const purchased = detailsArray.slice(0, quantity);
+
+    // Remaining stock
+    const remaining = detailsArray.slice(quantity);
+
+    // Update DB
+    log.details = remaining.join("\n");
+    log.stock = remaining.length;
+
+    await log.save();
+
+    res.json({
+      success: true,
+      purchased: purchased.join("\n"),
+      remainingStock: log.stock,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
