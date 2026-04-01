@@ -165,8 +165,7 @@
 
 const Log = require("../models/Log");
 const LogOrder = require("../models/LogOrder");
-const { nanoid } = require("nanoid"); // npm install nanoid
-
+const { nanoid } = await import("nanoid"); 
 // =======================
 // CREATE LOG
 // =======================
