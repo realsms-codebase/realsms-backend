@@ -2,16 +2,22 @@ const mongoose = require("mongoose");
 
 const logOrderSchema = new mongoose.Schema(
   {
+    orderId: {
+      type: String,
+      required: true,
+      unique: true, // ensures no two orders have the same ID
+    },
+
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null, // ✅ FIX: no more validation error
+      default: null, // works even without authentication
     },
 
     productId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Log",
-      required: true, // keep required
+      required: true, // must have a reference to the log
     },
 
     name: String,
