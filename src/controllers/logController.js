@@ -189,6 +189,7 @@ exports.updateLog = async (req, res) => {
   }
 };
 
+
 // =======================
 // BUY LOG (MAIN LOGIC)
 // =======================
@@ -202,13 +203,12 @@ exports.buyLog = async (req, res) => {
     }
 
     const log = await Log.findById(id);
-
     if (!log) {
       return res.status(404).json({ message: "Log not found" });
     }
 
-    // Clean & split details
-    let detailsArray = log.details
+    // Split details
+    const detailsArray = log.details
       .split("\n")
       .map((d) => d.trim())
       .filter((d) => d !== "");
@@ -217,18 +217,42 @@ exports.buyLog = async (req, res) => {
       return res.status(400).json({ message: "Not enough stock" });
     }
 
-    // Extract purchased accounts
     const purchased = detailsArray.slice(0, quantity);
     const remaining = detailsArray.slice(quantity);
 
-    // Update stock
+    // Update stock in log
     log.details = remaining.join("\n");
     log.stock = remaining.length;
-
     await log.save();
 
     const purchasedText = purchased.join("\n");
     const totalCost = log.price * quantity;
+
+    // =======================
+    // ✅ SAVE ORDER HISTORY
+    // =======================
+    await LogOrder.create({
+      userId: req.user?.id || null, // works without auth
+      productId: log._id,           // ✅ must match schema
+      name: log.name,
+      platform: log.platform,
+      price: log.price,
+      quantity,
+      totalCost,
+      details: purchasedText,
+      status: "delivered",
+    });
+
+    res.json({
+      success: true,
+      purchased: purchasedText,
+      remainingStock: log.stock,
+    });
+  } catch (err) {
+    console.error("BUY LOG ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
 
     // =======================
     // ✅ SAVE ORDER HISTORY
