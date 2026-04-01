@@ -2,12 +2,6 @@ const mongoose = require("mongoose");
 
 const logOrderSchema = new mongoose.Schema(
   {
-    orderId: {
-      type: String,
-      required: true,
-      unique: true, // ensures no two orders have the same ID
-    },
-
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
