@@ -6,7 +6,7 @@ const logSchema = new mongoose.Schema(
     name: { type: String, required: true },
     price: { type: Number, required: true },
     stock: { type: Number, default: 0 },
-    type: { type: String, required: true },
+    type: { type: String, default: "", },
     details: { type: String, required: true },
   },
   { timestamps: true }
