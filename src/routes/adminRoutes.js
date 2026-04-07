@@ -39,4 +39,9 @@ router.delete("/transactions/:id", protect, adminOnly, adminController.deleteTra
 // ==============================
 router.get("/orders", protect, adminOnly, adminController.getAllOrders);
 
+// ==============================
+// LOG ORDERS ✅ NEW
+// ==============================
+router.get("/log-orders", protect, adminOnly, adminController.getAllLogOrders);
+
 module.exports = router;
