@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Order = require("../models/Order");
 const Transaction = require("../models/Transaction");
+const LogOrder = require("../models/LogOrder");
 
 /* ============================== 
    ADMIN STATS
@@ -366,5 +367,72 @@ exports.getAllOrders = async (req, res) => {
   } catch (err) {
     console.error("Fetch orders error:", err);
     res.status(500).json({ message: "Failed to fetch orders" });
+  }
+};
+
+/* ==============================
+   GET ALL LOG ORDERS (WITH SEARCH & PAGINATION)
+============================== */
+exports.getAllLogOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+    const search = req.query.search || "";
+
+    const pageNum = page;
+    const limitNum = limit;
+
+    let query = {};
+
+    if (search) {
+      // Find users matching search (email)
+      const matchedUsers = await User.find(
+        { email: { $regex: search, $options: "i" } },
+        "_id"
+      );
+      const userIds = matchedUsers.map((u) => u._id);
+
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { platform: { $regex: search, $options: "i" } },
+        { details: { $regex: search, $options: "i" } },
+        { userId: { $in: userIds } },
+      ];
+    }
+
+    // total count
+    const total = await LogOrder.countDocuments(query);
+
+    // fetch logs
+    const logs = await LogOrder.find(query)
+      .populate("userId", "email")
+      .populate("productId", "name platform")
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum);
+
+    // map to frontend format
+    const mappedLogs = logs.map((log) => ({
+      _id: log._id,
+      user: log.userId?.email || "Guest",
+      platform: log.platform || log.productId?.platform || "",
+      product: log.name || log.productId?.name || "",
+      price: log.price,
+      quantity: log.quantity,
+      totalCost: log.totalCost,
+      details: log.details,
+      status: log.status,
+      createdAt: log.createdAt,
+    }));
+
+    res.json({
+      data: mappedLogs,
+      page: pageNum,
+      total,
+      totalPages: Math.ceil(total / limitNum),
+    });
+  } catch (err) {
+    console.error("Fetch log orders error:", err);
+    res.status(500).json({ message: "Failed to fetch log orders" });
   }
 };
