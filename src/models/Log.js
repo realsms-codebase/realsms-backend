@@ -1,3 +1,19 @@
+// const mongoose = require("mongoose");
+
+// const logSchema = new mongoose.Schema(
+//   {
+//     platform: { type: String, required: true },
+//     name: { type: String, required: true },
+//     price: { type: Number, required: true },
+//     stock: { type: Number, default: 0 },
+//     type: { type: String, default: "", },
+//     details: { type: String, required: true },
+//   },
+//   { timestamps: true }
+// );
+
+// module.exports = mongoose.model("Log", logSchema);
+
 const mongoose = require("mongoose");
 
 const logSchema = new mongoose.Schema(
@@ -7,7 +23,7 @@ const logSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     stock: { type: Number, default: 0 },
     type: { type: String, default: "", },
-    details: { type: String, required: true },
+    details: { type: String, default: "" },
   },
   { timestamps: true }
 );
