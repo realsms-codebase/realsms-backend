@@ -42,6 +42,7 @@ router.get("/orders", protect, adminOnly, adminController.getAllOrders);
 // ==============================
 // LOG ORDERS ✅ NEW
 // ==============================
+router.post("/log-order", protect, adminController.createLogOrder);
 router.get("/log-orders", protect, adminOnly, adminController.getAllLogOrders);
 
 module.exports = router;
