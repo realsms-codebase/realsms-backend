@@ -5,7 +5,7 @@ const logOrderSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null, // ✅ FIX: no more validation error
+      required: true,
     },
 
     productId: {
