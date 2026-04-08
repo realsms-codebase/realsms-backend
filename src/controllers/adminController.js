@@ -370,41 +370,6 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
-/* =====================
-   CREATE LOG ORDERS
-======================== */
-exports.createLogOrder = async (req, res) => {
-  try {
-    const {
-      productId,
-      name,
-      platform,
-      price,
-      quantity,
-      totalCost,
-      details,
-    } = req.body;
-
-    const log = await LogOrder.create({
-      userId: req.user._id, // 🔥 THIS IS THE FIX
-      productId,
-      name,
-      platform,
-      price,
-      quantity,
-      totalCost,
-      details,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: log,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to create log" });
-  }
-};
 
 /* ==============================
    GET ALL LOG ORDERS (WITH SEARCH & PAGINATION)
