@@ -10,7 +10,7 @@ const {
   getLogOrders,
 } = require("../controllers/logController");
 
-const { protect } = require("../middleware/authMiddleware"); // your auth middleware
+const { protect } = require("../middleware/adminAuthMiddleware"); // your auth middleware
 
 // =======================
 // LOG CRUD
