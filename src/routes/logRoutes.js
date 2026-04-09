@@ -10,15 +10,14 @@ const {
   getLogOrders,
 } = require("../controllers/logController");
 
-const { protect } = require("../middleware/adminAuthMiddleware"); // your auth middleware
-
+const { protect, adminOnly } = require("../middleware/adminAuthMiddleware");
 // =======================
 // LOG CRUD
 // =======================
-router.post("/", protect, createLog);       // optional: only admin can create
+router.post("/", protect, adminOnly, createLog);       // optional: only admin can create
 router.get("/", getLogs);                   // public
-router.put("/:id", protect, updateLog);     // optional: only admin
-router.delete("/:id", protect, deleteLog);  // optional: only admin
+router.put("/:id", protect, adminOnly, updateLog);     // optional: only admin
+router.delete("/:id", protect, adminOnly, deleteLog);  // optional: only admin
 
 // =======================
 // BUY LOG
