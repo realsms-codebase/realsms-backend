@@ -68,33 +68,6 @@ exports.getAdminStats = async (req, res) => {
 /* ==============================
    GET ALL USERS (WITH SEARCH & PAGINATION)
 ============================== */
-// exports.getAllUsers = async (req, res) => {
-//   try {
-//     const { search = "", page = 1, limit = 10 } = req.query;
-
-//     const query = { email: { $regex: search, $options: "i" } };
-
-//     const total = await User.countDocuments(query);
-//     const users = await User.find(query, "email walletBalanceNGN createdAt status")
-//       .sort({ createdAt: -1 })
-//       .skip((page - 1) * limit)
-//       .limit(Number(limit));
-
-//     const mappedUsers = users.map((u) => ({
-//       _id: u._id,
-//       email: u.email,
-//       balance: u.walletBalanceNGN,
-//       status: u.status || "Active",
-//       dateJoined: u.createdAt,
-//     }));
-
-//     res.json({ data: mappedUsers, total });
-//   } catch (error) {
-//     console.error("Fetch users error:", error);
-//     res.status(500).json({ message: "Failed to fetch users" });
-//   }
-// };
-
 exports.getAllUsers = async (req, res) => {
   try {
     const { search = "", page = 1, limit = 10 } = req.query;
