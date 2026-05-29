@@ -7,11 +7,11 @@ cron.schedule("0 2 * * *", async () => {
     console.log("🧹 Running order cleanup job...");
 
     const result = await Order.deleteMany({
-      status: { $in: ["refunded", "waiting"] },
+      status: "refunded",
     });
 
     console.log(
-      `✅ Cleanup complete. Deleted ${result.deletedCount} orders.`
+      `✅ Cleanup complete. Deleted ${result.deletedCount} refunded orders.`
     );
   } catch (error) {
     console.error("❌ Order cleanup failed:", error.message);
