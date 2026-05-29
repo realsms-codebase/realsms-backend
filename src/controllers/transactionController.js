@@ -75,3 +75,34 @@ exports.getUserTransactions = async (req, res) => {
     });
   }
 };
+
+exports.getDepositNotifications = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({
+      user: req.user._id,
+      status: "SUCCESS",
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    const notifications = transactions.map((tx) => ({
+      id: tx._id,
+      text: `Deposit of ₦${tx.amount.toLocaleString()} successful`,
+      time: tx.createdAt,
+      read: false,
+      provider: tx.provider,
+    }));
+
+    res.json({
+      success: true,
+      notifications,
+    });
+  } catch (err) {
+    console.error("Deposit notification error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
