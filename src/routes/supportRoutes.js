@@ -41,6 +41,6 @@ router.post("/reply", protect, adminOnly, adminReply);
 // Admin marks messages as read
 router.put("/admin/read/:userId", protect, adminOnly, markMessagesAsRead);
 
-router.get("/support/notifications", protectSupportUser, getSupportNotifications);
+router.get("/notifications", protectSupportUser, getSupportNotifications);
 
 module.exports = router;
