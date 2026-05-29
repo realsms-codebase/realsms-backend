@@ -114,3 +114,27 @@ exports.markMessagesAsRead = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// GET USER SUPPORT NOTIFICATIONS (FOR TOPBAR)
+exports.getSupportNotifications = async (req, res) => {
+  try {
+    const notifications = await Support.find({
+      user: req.user._id,
+      sender: "admin",
+      read: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    const formatted = notifications.map((n) => ({
+      id: n._id,
+      text: `Support replied: ${n.message}`,
+      time: n.createdAt,
+      read: n.read,
+    }));
+
+    res.json({ success: true, notifications: formatted });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
