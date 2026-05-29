@@ -23,6 +23,7 @@ const supportRoutes = require("./routes/supportRoutes");
 
 // CRON JOBS
 require("./cron/transactionCleanup");
+require("./cron/orderCleanup");
 
 const app = express();
 
