@@ -10,6 +10,7 @@ const {
   markMessagesAsRead,
   markAdminMessagesAsRead,
   getUnreadCount,
+  getSupportNotifications
 } = require("../controllers/supportController");
 
 const { protectSupportUser } = require("../middleware/supportAuthMiddleware"); // for normal users
@@ -38,6 +39,8 @@ router.get("/admin/unread", protect, adminOnly, getUnreadMessages);
 router.post("/reply", protect, adminOnly, adminReply);
 
 // Admin marks messages as read
-router.put("/admin/read/:userId", protect, adminOnly, markMessagesAsRead); // <-- FIXED comma
+router.put("/admin/read/:userId", protect, adminOnly, markMessagesAsRead);
+
+router.get("/support/notifications", protectSupportUser, getSupportNotifications);
 
 module.exports = router;
