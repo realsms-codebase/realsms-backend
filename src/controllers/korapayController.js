@@ -428,7 +428,7 @@ const MIN_AMOUNT = 200;
 const MAX_AMOUNT = 1000000;
 
 /* ======================================================
-   1️⃣ INIT PAYMENT (FIXED + SAFE)
+   1️⃣ INIT PAYMENT (FIXED FOR YOUR KORAPAY FLOW)
 ====================================================== */
 exports.initializePayment = async (req, res) => {
   try {
@@ -436,17 +436,22 @@ exports.initializePayment = async (req, res) => {
     const numericAmount = Number(amount);
 
     if (!numericAmount || numericAmount < MIN_AMOUNT) {
-      return res.status(400).json({ message: "Minimum amount is ₦200" });
+      return res.status(400).json({
+        message: `Minimum amount is ₦${MIN_AMOUNT.toLocaleString()}`,
+      });
     }
 
     if (numericAmount > MAX_AMOUNT) {
-      return res.status(400).json({ message: "Maximum amount exceeded" });
+      return res.status(400).json({
+        message: `Maximum amount is ₦${MAX_AMOUNT.toLocaleString()}`,
+      });
     }
 
     if (!req.user?.email) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // ✅ YOUR SYSTEM REFERENCE
     const reference = `RSMS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     const payload = {
@@ -478,12 +483,13 @@ exports.initializePayment = async (req, res) => {
       }
     );
 
-    console.log("🔥 KORAPAY INIT RESPONSE:", JSON.stringify(response.data, null, 2));
+    console.log("🔥 FULL KORAPAY RESPONSE:", JSON.stringify(response.data, null, 2));
 
     const korapayData = response.data?.data;
 
-    // ✅ ONLY REAL CORRECT FIELD
-    const korapayReference = korapayData?.internal_reference;
+    // 🚨 IMPORTANT FIX: use `reference` (NOT internal_reference)
+    const korapayReference = korapayData?.reference;
+
     const checkoutUrl = korapayData?.checkout_url;
 
     if (!checkoutUrl) {
@@ -495,7 +501,7 @@ exports.initializePayment = async (req, res) => {
 
     if (!korapayReference) {
       return res.status(500).json({
-        message: "Missing Korapay internal_reference",
+        message: "Missing Korapay reference",
         detail: response.data,
       });
     }
@@ -527,7 +533,7 @@ exports.initializePayment = async (req, res) => {
 };
 
 /* ======================================================
-   2️⃣ VERIFY PAYMENT (CLEAN + SAFE)
+   2️⃣ VERIFY PAYMENT (FIXED)
 ====================================================== */
 exports.verifyPayment = async (req, res) => {
   try {
@@ -603,7 +609,7 @@ exports.verifyPayment = async (req, res) => {
 };
 
 /* ======================================================
-   3️⃣ WEBHOOK (SOURCE OF TRUTH)
+   3️⃣ WEBHOOK (SAFE + FINAL)
 ====================================================== */
 exports.korapayWebhook = async (req, res) => {
   try {
@@ -615,7 +621,7 @@ exports.korapayWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const korapayRef = event.data?.internal_reference;
+    const korapayRef = event.data?.reference; // IMPORTANT FIX
 
     if (!korapayRef) {
       return res.sendStatus(200);
