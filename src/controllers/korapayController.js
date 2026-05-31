@@ -296,6 +296,123 @@
 //   }
 // };
 
+// const axios = require("axios");
+// const User = require("../models/User");
+// const Transaction = require("../models/Transaction");
+
+// const KORAPAY_SECRET_KEY = process.env.KORAPAY_SECRET_KEY;
+
+// const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+// const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+
+// const MIN_AMOUNT = 200;
+// const MAX_AMOUNT = 1000000;
+
+// const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
+
+// /* ======================================================
+//    1️⃣ INITIALIZE PAYMENT (FIXED)
+// ====================================================== */
+// exports.initializePayment = async (req, res) => {
+//   try {
+//     const { amount } = req.body;
+//     const numericAmount = Number(amount);
+
+//     if (!numericAmount || numericAmount < MIN_AMOUNT) {
+//       return res.status(400).json({
+//         message: `Minimum amount is ₦${MIN_AMOUNT.toLocaleString()}`,
+//       });
+//     }
+
+//     if (numericAmount > MAX_AMOUNT) {
+//       return res.status(400).json({
+//         message: `Maximum amount is ₦${MAX_AMOUNT.toLocaleString()}`,
+//       });
+//     }
+
+//     if (!req.user || !req.user.email) {
+//       return res.status(401).json({ message: "Unauthorized" });
+//     }
+
+//     // ✅ Your internal reference
+//     const reference = `RSMS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+//     const payload = {
+//       amount: numericAmount,
+//       currency: "NGN",
+//       reference,
+
+//       // 🔥 IMPORTANT: ensure your reference is returned on redirect
+//       redirect_url: `${BACKEND_URL}/api/korapay/verify?reference=${reference}`,
+
+//       customer: {
+//         email: req.user.email,
+//         name: req.user.name || req.user.email,
+//       },
+
+//       metadata: {
+//         userId: req.user._id.toString(),
+//         reference,
+//       },
+//     };
+
+//     const response = await axios.post(
+//       `${KORAPAY_BASE_URL}/charges/initialize`,
+//       payload,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
+
+//     const checkoutUrl = response.data?.data?.checkout_url;
+
+//     // 🔥 FIX: correct Korapay reference extraction
+//     const korapayReference =
+//       response.data?.data?.reference ||
+//       response.data?.data?.transaction_reference ||
+//       response.data?.data?.payment_reference;
+
+//     if (!checkoutUrl) {
+//       return res.status(400).json({
+//         message: "Initialization failed",
+//         detail: response.data,
+//       });
+//     }
+
+//     console.log("✅ RSMS Ref:", reference);
+//     console.log("✅ Korapay Ref:", korapayReference);
+
+//     // ❌ CRITICAL FIX: NEVER allow korapayReference to equal RSMS reference
+//     if (!korapayReference || korapayReference === reference) {
+//       console.log("⚠️ Invalid Korapay reference returned");
+//     }
+
+//     await Transaction.create({
+//       user: req.user._id,
+//       reference, // RSMS reference (YOUR SYSTEM)
+//       korapayReference, // KORAPAY reference (IMPORTANT)
+//       amount: numericAmount,
+//       currency: "NGN",
+//       provider: "KORAPAY",
+//       status: "PENDING",
+//     });
+
+//     return res.status(200).json({
+//       checkout_url: checkoutUrl,
+//     });
+
+//   } catch (error) {
+//     console.error("❌ INIT ERROR:", error.response?.data || error.message);
+//     return res.status(500).json({
+//       message: "Korapay initialization failed",
+//       detail: error.response?.data || error.message,
+//     });
+//   }
+// };
+
 const axios = require("axios");
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
@@ -311,7 +428,7 @@ const MAX_AMOUNT = 1000000;
 const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
 
 /* ======================================================
-   1️⃣ INITIALIZE PAYMENT (FIXED)
+   1️⃣ INITIALIZE PAYMENT (FINAL FIXED VERSION)
 ====================================================== */
 exports.initializePayment = async (req, res) => {
   try {
@@ -330,11 +447,11 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    if (!req.user || !req.user.email) {
+    if (!req.user?.email) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // ✅ Your internal reference
+    // ✅ YOUR SYSTEM REFERENCE
     const reference = `RSMS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     const payload = {
@@ -342,7 +459,6 @@ exports.initializePayment = async (req, res) => {
       currency: "NGN",
       reference,
 
-      // 🔥 IMPORTANT: ensure your reference is returned on redirect
       redirect_url: `${BACKEND_URL}/api/korapay/verify?reference=${reference}`,
 
       customer: {
@@ -367,33 +483,50 @@ exports.initializePayment = async (req, res) => {
       }
     );
 
-    const checkoutUrl = response.data?.data?.checkout_url;
+    // 🔥 PRINT FULL RESPONSE (THIS IS KEY FOR DEBUGGING)
+    console.log("🔥 KORAPAY FULL RESPONSE:");
+    console.log(JSON.stringify(response.data, null, 2));
 
-    // 🔥 FIX: correct Korapay reference extraction
+    const korapayData = response.data?.data || {};
+
+    // ✅ FIXED: robust extraction (NO GUESSING SINGLE FIELD)
     const korapayReference =
-      response.data?.data?.reference ||
-      response.data?.data?.transaction_reference ||
-      response.data?.data?.payment_reference;
+      korapayData?.reference ||
+      korapayData?.charge_reference ||
+      korapayData?.payment_reference ||
+      korapayData?.transaction_reference ||
+      null;
+
+    const checkoutUrl = korapayData?.checkout_url;
 
     if (!checkoutUrl) {
       return res.status(400).json({
-        message: "Initialization failed",
+        message: "Korapay initialization failed",
         detail: response.data,
       });
     }
 
-    console.log("✅ RSMS Ref:", reference);
-    console.log("✅ Korapay Ref:", korapayReference);
-
-    // ❌ CRITICAL FIX: NEVER allow korapayReference to equal RSMS reference
-    if (!korapayReference || korapayReference === reference) {
-      console.log("⚠️ Invalid Korapay reference returned");
+    // ❌ HARD GUARD: prevent wrong saving
+    if (!korapayReference) {
+      console.error("❌ KORAPAY REFERENCE MISSING");
+      return res.status(500).json({
+        message: "Invalid Korapay response (missing reference)",
+        detail: response.data,
+      });
     }
+
+    // ❌ SAFETY CHECK: NEVER allow RSMS fallback
+    if (korapayReference === reference) {
+      console.error("❌ BUG: Korapay reference equals RSMS reference");
+    }
+
+    console.log("✅ RSMS Ref:", reference);
+    console.log("✅ KoraPay Ref:", korapayReference);
 
     await Transaction.create({
       user: req.user._id,
-      reference, // RSMS reference (YOUR SYSTEM)
-      korapayReference, // KORAPAY reference (IMPORTANT)
+      reference,
+      korapayReference, // ✅ ALWAYS REAL KORAPAY VALUE
       amount: numericAmount,
       currency: "NGN",
       provider: "KORAPAY",
