@@ -9,7 +9,7 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 
 const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
 
-const MIN_AMOUNT = 200;
+const MIN_AMOUNT = 1000;
 const MAX_AMOUNT = 1000000;
 
 /* ======================================================
