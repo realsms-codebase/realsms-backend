@@ -36,7 +36,8 @@
 //       return res.status(401).json({ message: "Unauthorized" });
 //     }
 
-//     const reference = `RSMS-${req.user._id}-${Date.now()}`;
+//     // ✅ YOUR reference
+//     const reference = `RSMS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
 //     const payload = {
 //       amount: numericAmount,
@@ -66,7 +67,7 @@
 //     const checkoutUrl = response.data?.data?.checkout_url;
 //     const korapayReference = response.data?.data?.reference;
 
-//     if (!checkoutUrl || !korapayReference) {
+//     if (!checkoutUrl) {
 //       return res.status(400).json({
 //         message: "Initialization failed",
 //         detail: response.data,
@@ -100,41 +101,46 @@
 // };
 
 // /* ======================================================
-//    2️⃣ VERIFY PAYMENT (REDIRECT FIXED)
+//    2️⃣ VERIFY PAYMENT (FIXED 🔥)
 // ====================================================== */
 // exports.verifyPayment = async (req, res) => {
 //   try {
-//     console.log("🔍 QUERY:", req.query);
+//     console.log("🔍 FULL QUERY:", req.query);
+//     console.log("🔍 FULL URL:", req.originalUrl);
 
-//     const reference = req.query.reference;
+//     // ✅ handle all possible query keys
+//     const reference =
+//       req.query.reference ||
+//       req.query.trxref ||
+//       req.query.tx_ref ||
+//       req.query.order_ref;
 
 //     if (!reference) {
+//       console.log("❌ No reference in URL");
 //       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
 //     }
 
-//     // ✅ Always try Korapay reference first
-//     let transaction = await Transaction.findOne({
-//       korapayReference: reference,
-//     });
+//     console.log("🔍 Incoming Ref:", reference);
 
-//     // ✅ fallback (rare)
-//     if (!transaction) {
-//       transaction = await Transaction.findOne({
-//         reference: reference,
-//       });
-//     }
+//     // ✅ CRITICAL FIX: search BOTH refs
+//     const transaction = await Transaction.findOne({
+//       $or: [
+//         { reference: reference },
+//         { korapayReference: reference },
+//       ],
+//     });
 
 //     if (!transaction) {
 //       console.log("❌ Transaction not found:", reference);
 //       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
 //     }
 
-//     // ✅ Prevent duplicate credit
+//     // ✅ prevent double credit
 //     if (transaction.status === "SUCCESS") {
 //       return res.redirect(`${FRONTEND_URL}/fund-success`);
 //     }
 
-//     const verifyRef = transaction.korapayReference;
+//     const verifyRef = transaction.korapayReference || transaction.reference;
 
 //     const response = await axios.get(
 //       `${KORAPAY_BASE_URL}/transactions/verify/${verifyRef}`,
@@ -149,10 +155,13 @@
 
 //     console.log("🔍 VERIFY RESPONSE:", paymentData);
 
-//     if (!paymentData || paymentData.status !== "success") {
-//       transaction.status = "FAILED";
-//       await transaction.save();
-//       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
+//     // ✅ don't instantly fail — allow webhook to handle it
+//     if (
+//       !paymentData ||
+//       paymentData.status.toLowerCase() !== "success"
+//     ) {
+//       console.log("⚠️ Payment not confirmed yet, waiting for webhook...");
+//       return res.redirect(`${FRONTEND_URL}/fund-pending`);
 //     }
 
 //     if (Number(paymentData.amount) !== Number(transaction.amount)) {
@@ -175,6 +184,7 @@
 //       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
 //     }
 
+//     // ✅ credit wallet
 //     user.walletBalanceNGN += transaction.amount;
 //     await user.save();
 
@@ -182,7 +192,7 @@
 //     transaction.processedAt = new Date();
 //     await transaction.save();
 
-//     console.log("✅ Wallet credited (redirect):", verifyRef);
+//     console.log("✅ Wallet credited (redirect):", reference);
 
 //     return res.redirect(`${FRONTEND_URL}/fund-success`);
 
@@ -193,7 +203,7 @@
 // };
 
 // /* ======================================================
-//    3️⃣ WEBHOOK (API VERIFIED)
+//    3️⃣ WEBHOOK (FINAL SAFE VERSION)
 // ====================================================== */
 // exports.korapayWebhook = async (req, res) => {
 //   try {
@@ -212,7 +222,10 @@
 //     }
 
 //     const transaction = await Transaction.findOne({
-//       korapayReference: reference,
+//       $or: [
+//         { reference: reference },
+//         { korapayReference: reference },
+//       ],
 //     });
 
 //     if (!transaction) {
@@ -225,9 +238,10 @@
 //       return res.sendStatus(200);
 //     }
 
-//     // 🔒 VERIFY AGAIN (VERY IMPORTANT)
+//     const verifyRef = transaction.korapayReference || transaction.reference;
+
 //     const response = await axios.get(
-//       `${KORAPAY_BASE_URL}/transactions/verify/${reference}`,
+//       `${KORAPAY_BASE_URL}/transactions/verify/${verifyRef}`,
 //       {
 //         headers: {
 //           Authorization: `Bearer ${KORAPAY_SECRET_KEY}`,
@@ -237,7 +251,10 @@
 
 //     const paymentData = response.data?.data;
 
-//     if (!paymentData || paymentData.status !== "success") {
+//     if (
+//       !paymentData ||
+//       paymentData.status.toLowerCase() !== "success"
+//     ) {
 //       transaction.status = "FAILED";
 //       await transaction.save();
 //       return res.sendStatus(200);
@@ -261,6 +278,7 @@
 //       return res.sendStatus(200);
 //     }
 
+//     // ✅ credit wallet
 //     user.walletBalanceNGN += transaction.amount;
 //     await user.save();
 
@@ -293,7 +311,7 @@ const MAX_AMOUNT = 1000000;
 const KORAPAY_BASE_URL = "https://api.korapay.com/merchant/api/v1";
 
 /* ======================================================
-   1️⃣ INITIALIZE PAYMENT
+   1️⃣ INITIALIZE PAYMENT (FIXED)
 ====================================================== */
 exports.initializePayment = async (req, res) => {
   try {
@@ -323,13 +341,18 @@ exports.initializePayment = async (req, res) => {
       amount: numericAmount,
       currency: "NGN",
       reference,
-      redirect_url: `${BACKEND_URL}/api/korapay/verify`,
+
+      // 🔥 FIX: ensure Korapay returns your reference back
+      redirect_url: `${BACKEND_URL}/api/korapay/verify?reference=${reference}`,
+
       customer: {
         email: req.user.email,
         name: req.user.name || req.user.email,
       },
+
       metadata: {
         userId: req.user._id.toString(),
+        reference, // 🔥 IMPORTANT FIX
       },
     };
 
@@ -381,14 +404,13 @@ exports.initializePayment = async (req, res) => {
 };
 
 /* ======================================================
-   2️⃣ VERIFY PAYMENT (FIXED 🔥)
+   2️⃣ VERIFY PAYMENT (FIXED - NO MORE FALSE CANCEL)
 ====================================================== */
 exports.verifyPayment = async (req, res) => {
   try {
-    console.log("🔍 FULL QUERY:", req.query);
-    console.log("🔍 FULL URL:", req.originalUrl);
+    console.log("🔍 VERIFY QUERY:", req.query);
+    console.log("🔍 VERIFY URL:", req.originalUrl);
 
-    // ✅ handle all possible query keys
     const reference =
       req.query.reference ||
       req.query.trxref ||
@@ -396,16 +418,15 @@ exports.verifyPayment = async (req, res) => {
       req.query.order_ref;
 
     if (!reference) {
-      console.log("❌ No reference in URL");
+      console.log("❌ Missing reference");
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    console.log("🔍 Incoming Ref:", reference);
+    console.log("🔍 FINAL REF:", reference);
 
-    // ✅ CRITICAL FIX: search BOTH refs
     const transaction = await Transaction.findOne({
       $or: [
-        { reference: reference },
+        { reference },
         { korapayReference: reference },
       ],
     });
@@ -415,7 +436,6 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // ✅ prevent double credit
     if (transaction.status === "SUCCESS") {
       return res.redirect(`${FRONTEND_URL}/fund-success`);
     }
@@ -433,14 +453,10 @@ exports.verifyPayment = async (req, res) => {
 
     const paymentData = response.data?.data;
 
-    console.log("🔍 VERIFY RESPONSE:", paymentData);
+    console.log("🔍 KORAPAY VERIFY RESPONSE:", paymentData);
 
-    // ✅ don't instantly fail — allow webhook to handle it
-    if (
-      !paymentData ||
-      paymentData.status.toLowerCase() !== "success"
-    ) {
-      console.log("⚠️ Payment not confirmed yet, waiting for webhook...");
+    if (!paymentData || paymentData.status?.toLowerCase() !== "success") {
+      console.log("⚠️ Payment not successful yet");
       return res.redirect(`${FRONTEND_URL}/fund-pending`);
     }
 
@@ -464,7 +480,7 @@ exports.verifyPayment = async (req, res) => {
       return res.redirect(`${FRONTEND_URL}/fund-cancel`);
     }
 
-    // ✅ credit wallet
+    // ✅ CREDIT WALLET
     user.walletBalanceNGN += transaction.amount;
     await user.save();
 
@@ -472,7 +488,7 @@ exports.verifyPayment = async (req, res) => {
     transaction.processedAt = new Date();
     await transaction.save();
 
-    console.log("✅ Wallet credited (redirect):", reference);
+    console.log("✅ WALLET CREDITED (VERIFY):", reference);
 
     return res.redirect(`${FRONTEND_URL}/fund-success`);
 
@@ -483,7 +499,7 @@ exports.verifyPayment = async (req, res) => {
 };
 
 /* ======================================================
-   3️⃣ WEBHOOK (FINAL SAFE VERSION)
+   3️⃣ WEBHOOK (FINAL SAFE VERSION - IDEMPOTENT)
 ====================================================== */
 exports.korapayWebhook = async (req, res) => {
   try {
@@ -503,7 +519,7 @@ exports.korapayWebhook = async (req, res) => {
 
     const transaction = await Transaction.findOne({
       $or: [
-        { reference: reference },
+        { reference },
         { korapayReference: reference },
       ],
     });
@@ -531,10 +547,7 @@ exports.korapayWebhook = async (req, res) => {
 
     const paymentData = response.data?.data;
 
-    if (
-      !paymentData ||
-      paymentData.status.toLowerCase() !== "success"
-    ) {
+    if (!paymentData || paymentData.status?.toLowerCase() !== "success") {
       transaction.status = "FAILED";
       await transaction.save();
       return res.sendStatus(200);
@@ -558,7 +571,7 @@ exports.korapayWebhook = async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // ✅ credit wallet
+    // ✅ CREDIT WALLET
     user.walletBalanceNGN += transaction.amount;
     await user.save();
 
@@ -566,7 +579,7 @@ exports.korapayWebhook = async (req, res) => {
     transaction.processedAt = new Date();
     await transaction.save();
 
-    console.log("✅ Wallet credited (webhook):", reference);
+    console.log("✅ WALLET CREDITED (WEBHOOK):", reference);
 
     return res.sendStatus(200);
 
