@@ -5,9 +5,8 @@ const {
   sendBroadcastEmail,
 } = require("../controllers/broadcastController");
 
-router.post(
-  "/email-broadcast",
-  sendBroadcastEmail
-);
+const { protect, adminOnly } = require("../middleware/adminAuthMiddleware");
+
+router.post("/email-broadcast", protect, adminOnly, sendBroadcastEmail);
 
 module.exports = router;
