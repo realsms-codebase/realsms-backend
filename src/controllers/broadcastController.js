@@ -1,9 +1,9 @@
 // controllers/adminController.js
 
-const User = require("../models/User");
-const sendEmail = require("../utils/sendEmail");
+import User from "../models/User.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
-const sendBroadcastEmail = async (req, res) => {
+export const sendBroadcastEmail = async (req, res) => {
   try {
     const { subject, message } = req.body;
 
@@ -14,7 +14,6 @@ const sendBroadcastEmail = async (req, res) => {
       });
     }
 
-    // Get all users with email addresses
     const users = await User.find({
       email: { $exists: true, $ne: "" },
     }).select("email");
@@ -26,36 +25,34 @@ const sendBroadcastEmail = async (req, res) => {
       });
     }
 
-    const emailPromises = users.map((user) =>
-      sendEmail({
-        to: user.email,
-        subject,
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h2>${subject}</h2>
-            <p>${message.replace(/\n/g, "<br/>")}</p>
-          </div>
-        `,
-      })
+    const recipients = users.map((user) => user.email);
+
+    await Promise.all(
+      recipients.map((email) =>
+        sendEmail({
+          to: email,
+          subject,
+          text: message,
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height:1.6;">
+              <h2>${subject}</h2>
+              <p>${message.replace(/\n/g, "<br/>")}</p>
+            </div>
+          `,
+        })
+      )
     );
 
-    await Promise.all(emailPromises);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: `Broadcast email sent to ${users.length} users`,
-      totalRecipients: users.length,
+      message: `Broadcast email sent to ${recipients.length} users`,
     });
   } catch (error) {
     console.error("Broadcast Email Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to send broadcast email",
     });
   }
-};
-
-module.exports = {
-  sendBroadcastEmail,
 };
