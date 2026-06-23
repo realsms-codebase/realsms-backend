@@ -21,6 +21,7 @@ const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
 const logRoutes = require("./routes/logRoutes");
 const broadcastRoutes = require("./routes/broadcastRoutes");
 const supportRoutes = require("./routes/supportRoutes");
+const activityRoutes = require("./routes/activityRoutes");
 
 // CRON JOBS
 require("./cron/transactionCleanup");
@@ -124,6 +125,7 @@ app.use("/api/admin/auth", adminAuthRoutes);
 app.use("/api/log", logRoutes);
 app.use("/api/broadcast", broadcastRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/activity", activityRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
