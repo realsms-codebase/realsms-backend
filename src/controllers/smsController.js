@@ -549,6 +549,32 @@ const getUserOrders = async (req, res) => {
   }
 };
 
+/* =====================================================
+   GET SMS STATS
+===================================================== */
+
+const getSmsStats = async (req, res) => {
+    try {
+        const smsReceived = await Order.countDocuments({
+            status: "received",
+        });
+
+        const totalSms = await Order.countDocuments({});
+
+        const successRate =
+            totalSms === 0 ? 0 : (smsReceived / totalSms) * 100;
+
+        res.json({
+            smsReceived,
+            totalSms,
+            successRate: successRate.toFixed(2),
+        });
+    } catch (err) {
+        console.error("SMS stats error:", err);
+        res.status(500).json({ message: "Failed to fetch SMS stats" });
+    }
+};
+
 module.exports = {
   getServers,
   getServices,
@@ -557,4 +583,5 @@ module.exports = {
   resendOtp,
   cancelOrder,
   getUserOrders,
+  getSmsStats,
 };
