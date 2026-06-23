@@ -579,6 +579,52 @@ const getSmsStats = async (req, res) => {
     }
 };
 
+
+/* =====================================================
+   DASHBOARD OVERVIEW
+===================================================== */
+const getDashboardOverview = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // 1. NUMBERS OWNED (unique numbers)
+        const numbersOwned = await Order.distinct("number", {
+            user: userId,
+        });
+
+        // 2. COUNTRIES COVERED (unique country codes)
+        const countriesCovered = await Order.distinct("country.code", {
+            user: userId,
+        });
+
+        // 3. SUCCESS RATE (received vs total)
+        const totalOrders = await Order.countDocuments({
+            user: userId,
+        });
+
+        const receivedOrders = await Order.countDocuments({
+            user: userId,
+            status: "received",
+        });
+
+        const successRate =
+            totalOrders === 0
+                ? 0
+                : (receivedOrders / totalOrders) * 100;
+
+        return res.json({
+            numbersOwned: numbersOwned.length,
+            countriesCovered: countriesCovered.length,
+            successRate: Number(successRate.toFixed(2)),
+        });
+    } catch (err) {
+        console.error("Dashboard overview error:", err);
+        return res.status(500).json({
+            message: "Failed to fetch dashboard overview",
+        });
+    }
+};
+
 module.exports = {
   getServers,
   getServices,
@@ -588,4 +634,5 @@ module.exports = {
   cancelOrder,
   getUserOrders,
   getSmsStats,
+  getDashboardOverview,
 };
