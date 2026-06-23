@@ -1,14 +1,12 @@
-const express = require("express");
-const router = express.Router();
-
 const Transaction = require("../models/Transaction");
 const Order = require("../models/Order");
 const LogOrder = require("../models/LogOrder");
-const auth = require("../middleware/authMiddleware");
 
-router.get("/live", auth, async (req, res) => {
+/**
+ * GET LIVE ACTIVITIES
+ */
+const getLiveActivities = async (req, res) => {
   try {
-    // fetch latest records in parallel
     const [transactions, orders, logOrders] = await Promise.all([
       Transaction.find()
         .populate("user", "email")
@@ -26,7 +24,6 @@ router.get("/live", auth, async (req, res) => {
         .limit(10),
     ]);
 
-    // normalize transactions
     const transactionActivities = transactions.map((t) => ({
       type: "wallet",
       email: t.user?.email,
@@ -36,17 +33,15 @@ router.get("/live", auth, async (req, res) => {
       createdAt: t.createdAt,
     }));
 
-    // normalize SMS orders
     const orderActivities = orders.map((o) => ({
       type: "sms",
       email: o.user?.email,
-      action: `purchased ${o.country.code} ${o.service.name} Number`,
+      action: `purchased ${o.country?.code} ${o.service?.name} Number`,
       status: o.status,
       success: ["received", "waiting"].includes(o.status),
       createdAt: o.createdAt,
     }));
 
-    // normalize log orders
     const logActivities = logOrders.map((l) => ({
       type: "vpn",
       email: l.userId?.email,
@@ -56,26 +51,23 @@ router.get("/live", auth, async (req, res) => {
       createdAt: l.createdAt,
     }));
 
-    // merge + sort latest
     const activities = [
       ...transactionActivities,
       ...orderActivities,
       ...logActivities,
     ]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt) - new Date(a.createdAt)
-      )
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 15);
 
-    res.json(activities);
-
+    return res.json(activities);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
+    console.error("Live activity error:", err);
+    return res.status(500).json({
       message: "Failed to fetch activities",
     });
   }
-});
+};
 
-module.exports = router;
+module.exports = {
+  getLiveActivities,
+};
