@@ -4,7 +4,7 @@ const router = express.Router();
 const Transaction = require("../models/Transaction");
 const Order = require("../models/Order");
 const LogOrder = require("../models/LogOrder");
-const auth = require("../middleware/auth");
+const auth = require("../middleware/authMiddleware");
 
 router.get("/live", auth, async (req, res) => {
   try {
