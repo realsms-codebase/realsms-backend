@@ -7,7 +7,8 @@ const {
   getOtp,
   cancelOrder,
   getUserOrders,
-  resendOtp, // ✅ import the new controller
+  resendOtp, 
+  getSmsStats,
 } = require("../controllers/smsController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -33,5 +34,8 @@ router.get("/orders", protect, getUserOrders);
 
 // Cancel / refund order
 router.post("/cancel", protect, cancelOrder);
+
+// Sms Stats for a user
+router.get("/stats", protect, getSmsStats);
 
 module.exports = router;
