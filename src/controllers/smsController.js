@@ -552,14 +552,18 @@ const getUserOrders = async (req, res) => {
 /* =====================================================
    GET SMS STATS
 ===================================================== */
-
 const getSmsStats = async (req, res) => {
     try {
+        const userId = req.user.id;
+
         const smsReceived = await Order.countDocuments({
+            user: userId,
             status: "received",
         });
 
-        const totalSms = await Order.countDocuments({});
+        const totalSms = await Order.countDocuments({
+            user: userId,
+        });
 
         const successRate =
             totalSms === 0 ? 0 : (smsReceived / totalSms) * 100;
