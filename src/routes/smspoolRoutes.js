@@ -9,6 +9,7 @@ const {
   getUserOrders,
   resendOtp, 
   getSmsStats,
+  getDashboardOverview,
 } = require("../controllers/smsController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -27,7 +28,7 @@ router.post("/buy", protect, buyNumber);
 router.post("/otp", protect, getOtp);
 
 // Resend OTP for a purchased number
-router.post("/resend", protect, resendOtp); // ✅ new endpoint
+router.post("/resend", protect, resendOtp); 
 
 // Get orders for a user
 router.get("/orders", protect, getUserOrders);
@@ -37,5 +38,8 @@ router.post("/cancel", protect, cancelOrder);
 
 // Sms Stats for a user
 router.get("/stats", protect, getSmsStats);
+
+// Dashboard Overview for a user
+router.get("/overview", protect, getDashboardOverview);
 
 module.exports = router;
