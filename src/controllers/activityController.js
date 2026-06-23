@@ -77,7 +77,7 @@ const Order = require("../models/Order");
 const LogOrder = require("../models/LogOrder");
 
 /**
- * GET LIVE ACTIVITIES (ONLY SUCCESSFUL WALLET + SMS + LOGS)
+ * GET LIVE ACTIVITIES (SUCCESS ONLY + TRUE CHRONOLOGICAL ORDER)
  */
 const getLiveActivities = async (req, res) => {
   try {
@@ -98,7 +98,9 @@ const getLiveActivities = async (req, res) => {
         .limit(10),
     ]);
 
-    // ✅ ONLY successful wallet deposits
+    // =========================
+    // WALLET (SUCCESS ONLY)
+    // =========================
     const transactionActivities = transactions
       .filter((t) => t.status === "SUCCESS")
       .map((t) => ({
@@ -110,7 +112,9 @@ const getLiveActivities = async (req, res) => {
         createdAt: t.createdAt,
       }));
 
-    // ✅ ONLY successful SMS orders
+    // =========================
+    // SMS ORDERS (SUCCESS ONLY)
+    // =========================
     const orderActivities = orders
       .filter((o) => o.status === "delivered" || o.status === "received")
       .map((o) => ({
@@ -122,7 +126,9 @@ const getLiveActivities = async (req, res) => {
         createdAt: o.createdAt,
       }));
 
-    // ✅ ONLY successful logs (NOT optional anymore)
+    // =========================
+    // LOG ORDERS (SUCCESS ONLY)
+    // =========================
     const logActivities = logOrders
       .filter((l) => l.status === "delivered")
       .map((l) => ({
@@ -134,12 +140,23 @@ const getLiveActivities = async (req, res) => {
         createdAt: l.createdAt,
       }));
 
+    // =========================
+    // MERGE + TRUE TIME SORT
+    // =========================
     const activities = [
       ...transactionActivities,
       ...orderActivities,
       ...logActivities,
     ]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      // remove invalid timestamps
+      .filter((a) => a.createdAt)
+      // normalize timestamps
+      .map((a) => ({
+        ...a,
+        createdAt: new Date(a.createdAt).getTime(),
+      }))
+      // strict chronological order (NEWEST FIRST)
+      .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 15);
 
     return res.json(activities);
