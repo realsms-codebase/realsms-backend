@@ -6,7 +6,7 @@ const SMSPOOL_BASE_URL = "https://api.smspool.net";
 const API_KEY = process.env.SMS_POOL_API_KEY;
 
 const USD_TO_NGN = 1500;
-const MARKUP_PERCENT = 150;
+const MARKUP_PERCENT = 100;
 const MARKUP_MULTIPLIER = 1 + MARKUP_PERCENT / 100;
 
 /* =====================================================
