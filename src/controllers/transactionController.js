@@ -76,6 +76,32 @@ exports.getUserTransactionStats = async (req, res) => {
 //   }
 // };
 
+exports.getUserTransactions = async (req, res) => {
+  try {
+    const filter = { user: req.user.id };
+
+    // Optional type filter
+    if (req.query.type && req.query.type !== "all") {
+      filter.type = req.query.type;
+    }
+
+    const transactions = await Transaction.find(filter)
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: transactions,
+    });
+
+  } catch (err) {
+    console.error("Error fetching transactions:", err.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch transactions",
+    });
+  }
+};
 
 /* =========================
    DEPOSIT NOTIFICATION 
