@@ -292,8 +292,278 @@ const getServices = async (req, res) => {
 //   }
 // };
 
+// /* =====================================================
+//    BUY NUMBER (LIVE PRICE + AUTO POOL SELECTION)
+// ===================================================== */
+// const buyNumber = async (req, res) => {
+//   const { country, service } = req.body;
+
+//   if (!country || !service) {
+//     return res.status(400).json({
+//       success: 0,
+//       message: "Country and service are required",
+//     });
+//   }
+
+//   try {
+//     /* ==========================
+//        GET USER
+//     ========================== */
+//     const user = await User.findById(req.user.id);
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: 0,
+//         message: "User not found",
+//       });
+//     }
+
+//     /* ==========================
+//        GET LIVE PRICE
+//        (prevents surge losses)
+//     ========================== */
+
+//     const livePriceRes = await axios.post(
+//       `${SMSPOOL_BASE_URL}/request/price`,
+//       null,
+//       {
+//         params: {
+//           key: API_KEY,
+//           country,
+//           service,
+//         },
+//       }
+//     );
+
+//     if (
+//       !livePriceRes.data ||
+//       !livePriceRes.data.price
+//     ) {
+//       return res.status(400).json({
+//         success: 0,
+//         message:
+//           "Service unavailable for this country",
+//       });
+//     }
+
+//     const basePriceNGN =
+//       Number(livePriceRes.data.price) *
+//       USD_TO_NGN;
+
+//     const sellingPriceNGN = Math.ceil(
+//       basePriceNGN *
+//       MARKUP_MULTIPLIER
+//     );
+
+//     const successRate =
+//       livePriceRes.data.success_rate || 0;
+
+//     /* ==========================
+//        CHECK WALLET BALANCE
+//     ========================== */
+
+//     if (
+//       user.walletBalanceNGN <
+//       sellingPriceNGN
+//     ) {
+//       return res.status(400).json({
+//         success: 0,
+//         message:
+//           "Insufficient balance",
+//       });
+//     }
+
+//     /* ==========================
+//        GET COUNTRY
+//     ========================== */
+
+//     const countryRes = await axios.get(
+//       `${SMSPOOL_BASE_URL}/country/retrieve_all`,
+//       {
+//         params: {
+//           key: API_KEY,
+//         },
+//       }
+//     );
+
+//     const selectedCountry =
+//       countryRes.data.find(
+//         (c) =>
+//           String(c.ID) ===
+//           String(country)
+//       );
+
+//     if (!selectedCountry) {
+//       return res.status(400).json({
+//         success: 0,
+//         message:
+//           "Invalid country selected",
+//       });
+//     }
+
+//     /* ==========================
+//        GET SERVICE
+//     ========================== */
+
+//     const servicesRes = await axios.get(
+//       `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+//       {
+//         params: {
+//           key: API_KEY,
+//         },
+//       }
+//     );
+
+//     const selectedService =
+//       servicesRes.data.find(
+//         (s) =>
+//           String(s.ID) ===
+//           String(service)
+//       );
+
+//     if (!selectedService) {
+//       return res.status(400).json({
+//         success: 0,
+//         message:
+//           "Invalid service selected",
+//       });
+//     }
+
+//     /* ==========================
+//        PURCHASE
+//        SMSPool auto-selects pool
+//     ========================== */
+
+//     const purchaseRes =
+//       await axios.post(
+//         `${SMSPOOL_BASE_URL}/purchase/sms`,
+//         null,
+//         {
+//           params: {
+//             key: API_KEY,
+//             country,
+//             service,
+//             quantity: 1,
+//           },
+//         }
+//       );
+
+//     if (
+//       !purchaseRes.data ||
+//       purchaseRes.data.success === 0
+//     ) {
+//       return res.status(400).json({
+//         success: 0,
+//         message:
+//           purchaseRes.data?.message ||
+//           "Purchase failed",
+//       });
+//     }
+
+//     const {
+//       number,
+//       orderid,
+//       pool,
+//     } = purchaseRes.data;
+
+//     /* ==========================
+//        DEDUCT WALLET
+//     ========================== */
+
+//     user.walletBalanceNGN -=
+//       sellingPriceNGN;
+
+//     await user.save();
+
+//     /* ==========================
+//        SAVE ORDER
+//     ========================== */
+
+//     const order =
+//       new Order({
+//         user: user._id,
+
+//         service: {
+//           id: String(service),
+//           name:
+//             selectedService.name,
+//         },
+
+//         country: {
+//           id: String(country),
+//           code:
+//             selectedCountry.short_name,
+//         },
+
+//         orderid,
+//         number,
+
+//         pool: pool || null,
+
+//         baseCost:
+//           basePriceNGN,
+
+//         priceCharged:
+//           sellingPriceNGN,
+
+//         profit:
+//           sellingPriceNGN -
+//           basePriceNGN,
+
+//         successRate,
+
+//         status: "waiting",
+//       });
+
+//     await order.save();
+
+//     return res.json({
+//       success: 1,
+//       message:
+//         "Number purchased successfully",
+
+//       data: {
+//         number,
+//         orderid,
+
+//         pricePaid:
+//           sellingPriceNGN,
+
+//         countryCode:
+//           selectedCountry.short_name,
+
+//         serviceName:
+//           selectedService.name,
+
+//         pool:
+//           pool || null,
+
+//         successRate,
+//       },
+
+//       remainingBalance:
+//         user.walletBalanceNGN,
+//     });
+
+//   } catch (err) {
+
+//     console.error(
+//       "Buy Error:",
+//       err.response?.data ||
+//       err.message
+//     );
+
+//     return res.status(500).json({
+//       success: 0,
+//       message:
+//         err.response?.data?.message ||
+//         "Purchase failed",
+//     });
+//   }
+// };
+
 /* =====================================================
-   BUY NUMBER (LIVE PRICE + AUTO POOL SELECTION)
+   BUY NUMBER (LIVE PRICE + HIGH PRICE PROTECTION)
 ===================================================== */
 const buyNumber = async (req, res) => {
   const { country, service } = req.body;
@@ -309,6 +579,7 @@ const buyNumber = async (req, res) => {
     /* ==========================
        GET USER
     ========================== */
+
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -320,7 +591,6 @@ const buyNumber = async (req, res) => {
 
     /* ==========================
        GET LIVE PRICE
-       (prevents surge losses)
     ========================== */
 
     const livePriceRes = await axios.post(
@@ -337,7 +607,10 @@ const buyNumber = async (req, res) => {
 
     if (
       !livePriceRes.data ||
-      !livePriceRes.data.price
+      (
+        !livePriceRes.data.price &&
+        !livePriceRes.data.high_price
+      )
     ) {
       return res.status(400).json({
         success: 0,
@@ -346,20 +619,41 @@ const buyNumber = async (req, res) => {
       });
     }
 
-    const basePriceNGN =
-      Number(livePriceRes.data.price) *
-      USD_TO_NGN;
+    /* ==========================
+       USE HIGH PRICE
+       protects against price jumps
+    ========================== */
 
-    const sellingPriceNGN = Math.ceil(
-      basePriceNGN *
-      MARKUP_MULTIPLIER
+    const livePrice = Number(
+      livePriceRes.data.high_price ||
+      livePriceRes.data.price ||
+      0
     );
 
+    if (!livePrice) {
+      return res.status(400).json({
+        success: 0,
+        message: "Price unavailable",
+      });
+    }
+
+    const basePriceNGN =
+      livePrice *
+      USD_TO_NGN;
+
+    const sellingPriceNGN =
+      Math.ceil(
+        basePriceNGN *
+        MARKUP_MULTIPLIER
+      );
+
     const successRate =
-      livePriceRes.data.success_rate || 0;
+      Number(
+        livePriceRes.data.success_rate
+      ) || 0;
 
     /* ==========================
-       CHECK WALLET BALANCE
+       CHECK BALANCE
     ========================== */
 
     if (
@@ -377,14 +671,15 @@ const buyNumber = async (req, res) => {
        GET COUNTRY
     ========================== */
 
-    const countryRes = await axios.get(
-      `${SMSPOOL_BASE_URL}/country/retrieve_all`,
-      {
-        params: {
-          key: API_KEY,
-        },
-      }
-    );
+    const countryRes =
+      await axios.get(
+        `${SMSPOOL_BASE_URL}/country/retrieve_all`,
+        {
+          params: {
+            key: API_KEY,
+          },
+        }
+      );
 
     const selectedCountry =
       countryRes.data.find(
@@ -405,14 +700,15 @@ const buyNumber = async (req, res) => {
        GET SERVICE
     ========================== */
 
-    const servicesRes = await axios.get(
-      `${SMSPOOL_BASE_URL}/service/retrieve_all`,
-      {
-        params: {
-          key: API_KEY,
-        },
-      }
-    );
+    const servicesRes =
+      await axios.get(
+        `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+        {
+          params: {
+            key: API_KEY,
+          },
+        }
+      );
 
     const selectedService =
       servicesRes.data.find(
@@ -556,6 +852,7 @@ const buyNumber = async (req, res) => {
     return res.status(500).json({
       success: 0,
       message:
+        err.response?.data?.errors?.[0]?.message ||
         err.response?.data?.message ||
         "Purchase failed",
     });
