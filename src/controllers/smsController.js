@@ -32,46 +32,133 @@ const getServers = async (req, res) => {
   }
 };
 
+// /* =====================================================
+//    GET SERVICES WITH MARKUP
+// ===================================================== */
+// const getServices = async (req, res) => {
+//   try {
+//     const [servicesRes, pricingRes] = await Promise.all([
+//       axios.get(`${SMSPOOL_BASE_URL}/service/retrieve_all`, {
+//         params: { key: API_KEY },
+//       }),
+//       axios.get(`${SMSPOOL_BASE_URL}/request/pricing`, {
+//         params: { key: API_KEY },
+//       }),
+//     ]);
+
+//     const services = servicesRes.data.map((service) => {
+//       const countryPricing = pricingRes.data
+//         .filter((p) => String(p.service) === String(service.ID))
+//         .map((p) => {
+//           const basePriceNGN = Number(p.price) * USD_TO_NGN;
+//           const priceNGN = basePriceNGN * MARKUP_MULTIPLIER;
+
+//           return {
+//             countryID: String(p.country),
+//             pool: p.pool,
+//             basePriceNGN,
+//             priceNGN,
+//           };
+//         });
+
+//       return {
+//         ID: String(service.ID),
+//         name: service.name,
+//         pricing: countryPricing,
+//       };
+//     });
+
+//     res.json(services);
+//   } catch (err) {
+//     console.error("Service Error:", err.response?.data || err.message);
+//     res.status(500).json([]);
+//   }
+// };
+
 /* =====================================================
-   GET SERVICES WITH MARKUP
+   GET SERVICES WITH LIVE PRICING
 ===================================================== */
 const getServices = async (req, res) => {
   try {
+    // Prevent browser/CDN caching
+    res.set("Cache-Control", "no-store");
+
     const [servicesRes, pricingRes] = await Promise.all([
-      axios.get(`${SMSPOOL_BASE_URL}/service/retrieve_all`, {
-        params: { key: API_KEY },
-      }),
-      axios.get(`${SMSPOOL_BASE_URL}/request/pricing`, {
-        params: { key: API_KEY },
-      }),
+      axios.get(
+        `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+        {
+          params: { key: API_KEY },
+        }
+      ),
+      axios.get(
+        `${SMSPOOL_BASE_URL}/request/pricing`,
+        {
+          params: { key: API_KEY },
+        }
+      ),
     ]);
 
     const services = servicesRes.data.map((service) => {
-      const countryPricing = pricingRes.data
-        .filter((p) => String(p.service) === String(service.ID))
-        .map((p) => {
-          const basePriceNGN = Number(p.price) * USD_TO_NGN;
-          const priceNGN = basePriceNGN * MARKUP_MULTIPLIER;
+      // Get all pricing records for this service
+      const servicePricing = pricingRes.data.filter(
+        (p) =>
+          String(p.service) ===
+          String(service.ID)
+      );
 
-          return {
-            countryID: String(p.country),
-            pool: p.pool,
-            basePriceNGN,
-            priceNGN,
-          };
-        });
+      // Group by country and keep lowest price
+      const pricingByCountry = {};
+
+      servicePricing.forEach((p) => {
+        const countryId = String(p.country);
+
+        const basePriceNGN =
+          Number(p.price) * USD_TO_NGN;
+
+        const sellingPriceNGN =
+          basePriceNGN * MARKUP_MULTIPLIER;
+
+        const item = {
+          countryID: countryId,
+          pool: p.pool,
+          basePriceNGN,
+          priceNGN: Math.ceil(
+            sellingPriceNGN
+          ),
+        };
+
+        // Keep cheapest price only
+        if (
+          !pricingByCountry[countryId] ||
+          item.priceNGN <
+            pricingByCountry[countryId].priceNGN
+        ) {
+          pricingByCountry[countryId] =
+            item;
+        }
+      });
 
       return {
         ID: String(service.ID),
         name: service.name,
-        pricing: countryPricing,
+
+        // convert object → array
+        pricing: Object.values(
+          pricingByCountry
+        ),
       };
     });
 
     res.json(services);
+
   } catch (err) {
-    console.error("Service Error:", err.response?.data || err.message);
-    res.status(500).json([]);
+    console.error(
+      "Service Error:",
+      err.response?.data ||
+      err.message
+    );
+
+    return res.status(500).json([]);
   }
 };
 
