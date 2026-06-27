@@ -162,133 +162,401 @@ const getServices = async (req, res) => {
   }
 };
 
+// /* =====================================================
+//    BUY NUMBER (UPDATED)
+// ===================================================== */
+// const buyNumber = async (req, res) => {
+//   const { country, service } = req.body;
+
+//   if (!country || !service) {
+//     return res
+//       .status(400)
+//       .json({ success: 0, message: "Country and service are required" });
+//   }
+
+//   try {
+//     const user = await User.findById(req.user.id);
+//     if (!user)
+//       return res.status(404).json({ success: 0, message: "User not found" });
+
+//     // Get pricing
+//     const pricingRes = await axios.get(
+//       `${SMSPOOL_BASE_URL}/request/pricing`,
+//       { params: { key: API_KEY } }
+//     );
+
+//     const priceInfo = pricingRes.data.find(
+//       (p) =>
+//         String(p.service) === String(service) &&
+//         String(p.country) === String(country)
+//     );
+
+//     if (!priceInfo)
+//       return res
+//         .status(400)
+//         .json({ success: 0, message: "Service not available for selected country" });
+
+//     const basePriceNGN = Number(priceInfo.price) * USD_TO_NGN;
+//     const sellingPriceNGN = basePriceNGN * MARKUP_MULTIPLIER;
+
+//     if (user.walletBalanceNGN < sellingPriceNGN)
+//       return res
+//         .status(400)
+//         .json({ success: 0, message: "Insufficient balance" });
+
+//     // Fetch country
+//     const countryRes = await axios.get(
+//       `${SMSPOOL_BASE_URL}/country/retrieve_all`,
+//       { params: { key: API_KEY } }
+//     );
+
+//     const selectedCountry = countryRes.data.find(
+//       (c) => String(c.ID) === String(country)
+//     );
+
+//     if (!selectedCountry)
+//       return res
+//         .status(400)
+//         .json({ success: 0, message: "Invalid country selected" });
+
+//     // ✅ Fetch service name
+//     const servicesRes = await axios.get(
+//       `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+//       { params: { key: API_KEY } }
+//     );
+
+//     const selectedService = servicesRes.data.find(
+//       (s) => String(s.ID) === String(service)
+//     );
+
+//     if (!selectedService)
+//       return res
+//         .status(400)
+//         .json({ success: 0, message: "Invalid service selected" });
+
+//     const purchaseRes = await axios.post(
+//       `${SMSPOOL_BASE_URL}/purchase/sms`,
+//       null,
+//       { params: { key: API_KEY, country, service, quantity: 1 } }
+//     );
+
+//     if (!purchaseRes.data || purchaseRes.data.success === 0) {
+//       return res.status(500).json({
+//         success: 0,
+//         message: purchaseRes.data?.message || "Purchase failed",
+//       });
+//     }
+
+//     const { number, orderid } = purchaseRes.data;
+
+//     // Deduct wallet
+//     user.walletBalanceNGN -= sellingPriceNGN;
+//     await user.save();
+
+//     // ✅ SAVE SERVICE NAME
+//     const order = new Order({
+//       user: user._id,
+//       service: {
+//         id: String(service),
+//         name: selectedService.name,
+//       },
+//       country: {
+//         id: String(country),
+//         code: selectedCountry.short_name,
+//       },
+//       orderid,
+//       number,
+//       baseCost: basePriceNGN,
+//       priceCharged: sellingPriceNGN,
+//       profit: sellingPriceNGN - basePriceNGN,
+//       status: "waiting",
+//     });
+
+//     await order.save();
+
+//     res.json({
+//       success: 1,
+//       message: "Number purchased successfully",
+//       data: {
+//         number,
+//         orderid,
+//         pricePaid: sellingPriceNGN,
+//         countryCode: selectedCountry.short_name,
+//         serviceName: selectedService.name,
+//       },
+//       remainingBalance: user.walletBalanceNGN,
+//     });
+//   } catch (err) {
+//     console.error("Buy Error:", err.response?.data || err.message);
+//     res.status(500).json({ success: 0, message: "Purchase failed" });
+//   }
+// };
+
 /* =====================================================
-   BUY NUMBER (UPDATED)
+   BUY NUMBER (SURGE FIXED + POOL LOCKED)
 ===================================================== */
 const buyNumber = async (req, res) => {
-  const { country, service } = req.body;
+  const { country, service, pool } = req.body;
 
-  if (!country || !service) {
-    return res
-      .status(400)
-      .json({ success: 0, message: "Country and service are required" });
+  if (!country || !service || !pool) {
+    return res.status(400).json({
+      success: 0,
+      message: "Country, service and pool are required",
+    });
   }
 
   try {
+    // Get user
     const user = await User.findById(req.user.id);
-    if (!user)
-      return res.status(404).json({ success: 0, message: "User not found" });
 
-    // Get pricing
-    const pricingRes = await axios.get(
-      `${SMSPOOL_BASE_URL}/request/pricing`,
-      { params: { key: API_KEY } }
-    );
-
-    const priceInfo = pricingRes.data.find(
-      (p) =>
-        String(p.service) === String(service) &&
-        String(p.country) === String(country)
-    );
-
-    if (!priceInfo)
-      return res
-        .status(400)
-        .json({ success: 0, message: "Service not available for selected country" });
-
-    const basePriceNGN = Number(priceInfo.price) * USD_TO_NGN;
-    const sellingPriceNGN = basePriceNGN * MARKUP_MULTIPLIER;
-
-    if (user.walletBalanceNGN < sellingPriceNGN)
-      return res
-        .status(400)
-        .json({ success: 0, message: "Insufficient balance" });
-
-    // Fetch country
-    const countryRes = await axios.get(
-      `${SMSPOOL_BASE_URL}/country/retrieve_all`,
-      { params: { key: API_KEY } }
-    );
-
-    const selectedCountry = countryRes.data.find(
-      (c) => String(c.ID) === String(country)
-    );
-
-    if (!selectedCountry)
-      return res
-        .status(400)
-        .json({ success: 0, message: "Invalid country selected" });
-
-    // ✅ Fetch service name
-    const servicesRes = await axios.get(
-      `${SMSPOOL_BASE_URL}/service/retrieve_all`,
-      { params: { key: API_KEY } }
-    );
-
-    const selectedService = servicesRes.data.find(
-      (s) => String(s.ID) === String(service)
-    );
-
-    if (!selectedService)
-      return res
-        .status(400)
-        .json({ success: 0, message: "Invalid service selected" });
-
-    const purchaseRes = await axios.post(
-      `${SMSPOOL_BASE_URL}/purchase/sms`,
-      null,
-      { params: { key: API_KEY, country, service, quantity: 1 } }
-    );
-
-    if (!purchaseRes.data || purchaseRes.data.success === 0) {
-      return res.status(500).json({
+    if (!user) {
+      return res.status(404).json({
         success: 0,
-        message: purchaseRes.data?.message || "Purchase failed",
+        message: "User not found",
       });
     }
 
-    const { number, orderid } = purchaseRes.data;
+    /* ==========================
+       GET LIVE PRICE
+    ========================== */
 
-    // Deduct wallet
-    user.walletBalanceNGN -= sellingPriceNGN;
+    const livePriceRes = await axios.post(
+      `${SMSPOOL_BASE_URL}/request/price`,
+      null,
+      {
+        params: {
+          key: API_KEY,
+          country,
+          service,
+          pool,
+        },
+      }
+    );
+
+    if (
+      !livePriceRes.data ||
+      !livePriceRes.data.price
+    ) {
+      return res.status(400).json({
+        success: 0,
+        message: "Price unavailable",
+      });
+    }
+
+    const basePriceNGN =
+      Number(livePriceRes.data.price) *
+      USD_TO_NGN;
+
+    const sellingPriceNGN = Math.ceil(
+      basePriceNGN *
+      MARKUP_MULTIPLIER
+    );
+
+    const successRate =
+      livePriceRes.data.success_rate || 0;
+
+    /* ==========================
+       CHECK BALANCE
+    ========================== */
+
+    if (
+      user.walletBalanceNGN <
+      sellingPriceNGN
+    ) {
+      return res.status(400).json({
+        success: 0,
+        message:
+          "Insufficient balance",
+      });
+    }
+
+    /* ==========================
+       FETCH COUNTRY
+    ========================== */
+
+    const countryRes =
+      await axios.get(
+        `${SMSPOOL_BASE_URL}/country/retrieve_all`,
+        {
+          params: {
+            key: API_KEY,
+          },
+        }
+      );
+
+    const selectedCountry =
+      countryRes.data.find(
+        (c) =>
+          String(c.ID) ===
+          String(country)
+      );
+
+    if (!selectedCountry) {
+      return res.status(400).json({
+        success: 0,
+        message:
+          "Invalid country",
+      });
+    }
+
+    /* ==========================
+       FETCH SERVICE
+    ========================== */
+
+    const servicesRes =
+      await axios.get(
+        `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+        {
+          params: {
+            key: API_KEY,
+          },
+        }
+      );
+
+    const selectedService =
+      servicesRes.data.find(
+        (s) =>
+          String(s.ID) ===
+          String(service)
+      );
+
+    if (!selectedService) {
+      return res.status(400).json({
+        success: 0,
+        message:
+          "Invalid service",
+      });
+    }
+
+    /* ==========================
+       PURCHASE SAME POOL
+    ========================== */
+
+    const purchaseRes =
+      await axios.post(
+        `${SMSPOOL_BASE_URL}/purchase/sms`,
+        null,
+        {
+          params: {
+            key: API_KEY,
+            country,
+            service,
+            pool,
+            quantity: 1,
+          },
+        }
+      );
+
+    if (
+      !purchaseRes.data ||
+      purchaseRes.data.success === 0
+    ) {
+      return res.status(400).json({
+        success: 0,
+        message:
+          purchaseRes.data
+            ?.message ||
+          "Purchase failed",
+      });
+    }
+
+    const {
+      number,
+      orderid,
+    } = purchaseRes.data;
+
+    /* ==========================
+       DEDUCT WALLET
+    ========================== */
+
+    user.walletBalanceNGN -=
+      sellingPriceNGN;
+
     await user.save();
 
-    // ✅ SAVE SERVICE NAME
-    const order = new Order({
-      user: user._id,
-      service: {
-        id: String(service),
-        name: selectedService.name,
-      },
-      country: {
-        id: String(country),
-        code: selectedCountry.short_name,
-      },
-      orderid,
-      number,
-      baseCost: basePriceNGN,
-      priceCharged: sellingPriceNGN,
-      profit: sellingPriceNGN - basePriceNGN,
-      status: "waiting",
-    });
+    /* ==========================
+       SAVE ORDER
+    ========================== */
+
+    const order =
+      new Order({
+        user: user._id,
+
+        service: {
+          id: String(service),
+          name:
+            selectedService.name,
+        },
+
+        country: {
+          id: String(country),
+          code:
+            selectedCountry.short_name,
+        },
+
+        orderid,
+        number,
+
+        pool,
+
+        baseCost:
+          basePriceNGN,
+
+        priceCharged:
+          sellingPriceNGN,
+
+        profit:
+          sellingPriceNGN -
+          basePriceNGN,
+
+        successRate,
+
+        status: "waiting",
+      });
 
     await order.save();
 
-    res.json({
+    return res.json({
       success: 1,
-      message: "Number purchased successfully",
+      message:
+        "Number purchased successfully",
+
       data: {
         number,
         orderid,
-        pricePaid: sellingPriceNGN,
-        countryCode: selectedCountry.short_name,
-        serviceName: selectedService.name,
+
+        pricePaid:
+          sellingPriceNGN,
+
+        serviceName:
+          selectedService.name,
+
+        countryCode:
+          selectedCountry.short_name,
+
+        pool,
+
+        successRate,
       },
-      remainingBalance: user.walletBalanceNGN,
+
+      remainingBalance:
+        user.walletBalanceNGN,
     });
+
   } catch (err) {
-    console.error("Buy Error:", err.response?.data || err.message);
-    res.status(500).json({ success: 0, message: "Purchase failed" });
+    console.error(
+      "Buy Error:",
+      err.response?.data ||
+      err.message
+    );
+
+    return res.status(500).json({
+      success: 0,
+      message:
+        err.response?.data
+          ?.message ||
+        "Purchase failed",
+    });
   }
 };
 
