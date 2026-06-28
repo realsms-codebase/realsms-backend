@@ -42,7 +42,7 @@ app.use(helmet());
 app.use(
   "/uploads",
   express.static(
-    "uploads"
+    "src/uploads"
   )
 );
 
