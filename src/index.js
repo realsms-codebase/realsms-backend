@@ -22,6 +22,8 @@ const logRoutes = require("./routes/logRoutes");
 const broadcastRoutes = require("./routes/broadcastRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 const activityRoutes = require("./routes/activityRoutes");
+const tutorialRoutes = require("./routes/tutorialRoutes");
+
 
 // CRON JOBS
 require("./cron/transactionCleanup");
@@ -35,6 +37,14 @@ app.set('trust proxy', 1);
 
 // ================= HELMET SECURITY =================
 app.use(helmet());
+
+// ================= UPLOADS =================
+app.use(
+  "/uploads",
+  express.static(
+    "uploads"
+  )
+);
 
 // ================= RATE LIMITERS =================
 
@@ -126,6 +136,8 @@ app.use("/api/log", logRoutes);
 app.use("/api/broadcast", broadcastRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/tutorials", tutorialRoutes);
+
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
