@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require("path");
 require('dotenv').config();
 
 // ROUTES
@@ -42,7 +43,10 @@ app.use(helmet());
 app.use(
   "/uploads",
   express.static(
-    "src/uploads"
+    path.join(
+      __dirname,
+      "uploads"
+    )
   )
 );
 
