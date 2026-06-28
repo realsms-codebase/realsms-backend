@@ -5,11 +5,11 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
 
     if (file.fieldname === "thumbnail") {
-      cb(null, "uploads/thumbnails");
+      cb(null, "src/uploads/thumbnails");
     }
 
     if (file.fieldname === "video") {
-      cb(null, "uploads/videos");
+      cb(null, "src/uploads/videos");
     }
   },
 
