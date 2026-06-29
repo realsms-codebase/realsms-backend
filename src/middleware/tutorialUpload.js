@@ -1,62 +1,69 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
-// absolute upload paths
-const thumbnailPath = path.join(
-  __dirname,
-  "../uploads/thumbnails"
+const {
+  CloudinaryStorage,
+} = require(
+  "multer-storage-cloudinary"
 );
 
-const videoPath = path.join(
-  __dirname,
-  "../uploads/videos"
+const cloudinary = require(
+  "../utils/cloudinary"
 );
 
-// create folders automatically
-fs.mkdirSync(thumbnailPath, {
-  recursive: true,
-});
+const storage =
+  new CloudinaryStorage({
+    cloudinary,
 
-fs.mkdirSync(videoPath, {
-  recursive: true,
-});
+    params: async (
+      req,
+      file
+    ) => {
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+      // Thumbnail upload
+      if (
+        file.fieldname ===
+        "thumbnail"
+      ) {
+        return {
+          folder:
+            "tutorial-thumbnails",
+          resource_type:
+            "image",
 
-    if (file.fieldname === "thumbnail") {
-      return cb(
-        null,
-        thumbnailPath
+          allowed_formats: [
+            "jpg",
+            "jpeg",
+            "png",
+            "webp",
+          ],
+        };
+      }
+
+      // Video upload
+      if (
+        file.fieldname ===
+        "video"
+      ) {
+        return {
+          folder:
+            "tutorial-videos",
+          resource_type:
+            "video",
+
+          allowed_formats: [
+            "mp4",
+            "mov",
+            "avi",
+            "webm",
+          ],
+        };
+      }
+
+      throw new Error(
+        "Unsupported file type"
       );
-    }
-
-    if (file.fieldname === "video") {
-      return cb(
-        null,
-        videoPath
-      );
-    }
-
-    cb(
-      new Error("Invalid file type"),
-      null
-    );
-  },
-
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1e9) +
-      path.extname(
-        file.originalname
-      )
-    );
-  },
-});
+    },
+  });
 
 const fileFilter = (
   req,
@@ -82,7 +89,7 @@ const fileFilter = (
 
     return cb(
       new Error(
-        "Only images allowed"
+        "Only image files allowed"
       ),
       false
     );
@@ -106,7 +113,7 @@ const fileFilter = (
 
     return cb(
       new Error(
-        "Only videos allowed"
+        "Only video files allowed"
       ),
       false
     );
@@ -123,6 +130,13 @@ const fileFilter = (
 const upload = multer({
   storage,
   fileFilter,
+
+  limits: {
+    fileSize:
+      1000 *
+      1024 *
+      1024,
+  },
 });
 
 module.exports = upload;
