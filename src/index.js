@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const path = require("path");
 require('dotenv').config();
 
 // ROUTES
@@ -38,17 +37,6 @@ app.set('trust proxy', 1);
 
 // ================= HELMET SECURITY =================
 app.use(helmet());
-
-// ================= UPLOADS =================
-app.use(
-  "/uploads",
-  express.static(
-    path.join(
-      __dirname,
-      "uploads"
-    )
-  )
-);
 
 // ================= RATE LIMITERS =================
 
