@@ -2,7 +2,6 @@ const Tutorial = require(
   "../models/Tutorial"
 );
 
-
 // =======================
 // GET ALL TUTORIALS
 // =======================
@@ -22,12 +21,15 @@ const getTutorials = async (
       success: true,
       tutorials,
     });
+
   } catch (error) {
+
     res.status(500).json({
       success: false,
       message:
         error.message,
     });
+
   }
 };
 
@@ -41,6 +43,7 @@ const createTutorial = async (
   res
 ) => {
   try {
+
     const {
       title,
       description,
@@ -50,11 +53,11 @@ const createTutorial = async (
 
     const thumbnail =
       req.files?.thumbnail?.[0]
-        ?.filename;
+        ?.path || "";
 
     const video =
       req.files?.video?.[0]
-        ?.filename;
+        ?.path || "";
 
     const tutorial =
       await Tutorial.create({
@@ -62,18 +65,8 @@ const createTutorial = async (
         description,
         category,
         duration,
-
-        thumbnail: thumbnail
-          ? `${req.protocol}://${req.get(
-              "host"
-            )}/uploads/thumbnails/${thumbnail}`
-          : "",
-
-        video: video
-          ? `${req.protocol}://${req.get(
-              "host"
-            )}/uploads/videos/${video}`
-          : "",
+        thumbnail,
+        video,
       });
 
     res.status(201).json({
@@ -82,6 +75,8 @@ const createTutorial = async (
     });
 
   } catch (error) {
+
+    console.log(error);
 
     res.status(500).json({
       success: false,
@@ -138,26 +133,18 @@ const updateTutorial = async (
       req.files?.thumbnail?.[0]
     ) {
       tutorial.thumbnail =
-        `${req.protocol}://${req.get(
-          "host"
-        )}/uploads/thumbnails/${
-          req.files
-            .thumbnail[0]
-            .filename
-        }`;
+        req.files
+          .thumbnail[0]
+          .path;
     }
 
     if (
       req.files?.video?.[0]
     ) {
       tutorial.video =
-        `${req.protocol}://${req.get(
-          "host"
-        )}/uploads/videos/${
-          req.files
-            .video[0]
-            .filename
-        }`;
+        req.files
+          .video[0]
+          .path;
     }
 
     await tutorial.save();
@@ -168,6 +155,8 @@ const updateTutorial = async (
     });
 
   } catch (error) {
+
+    console.log(error);
 
     res.status(500).json({
       success: false,
@@ -184,7 +173,10 @@ const updateTutorial = async (
 // =======================
 
 const deleteTutorial =
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     try {
 
       const tutorial =
@@ -211,6 +203,8 @@ const deleteTutorial =
       });
 
     } catch (error) {
+
+      console.log(error);
 
       res.status(500).json({
         success: false,
