@@ -89,7 +89,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://realsms-mauve.vercel.app',
   'https://www.realsms.store',
-  'https://admin-realsms.vercel.app',
+  'https://admin-realsms-sepia.vercel.app',
 ];
 
 app.use(cors({
