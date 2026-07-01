@@ -3,6 +3,8 @@ const {
   registerUser,
   loginUser,
   getMe,
+  getProfile,
+  updateProfile,
   forgotPassword,
   resetPassword,
 } = require("../controllers/authController");
@@ -18,6 +20,11 @@ router.post("/reset-password/:token", resetPassword);
 
 // Protected
 router.get("/me", protect, getMe);
+
+// PROFILE ROUTES
+router.get("/profile", protect, getProfile);
+
+router.put("/profile", protect, updateProfile);
 
 module.exports = router;
 
