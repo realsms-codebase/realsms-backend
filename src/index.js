@@ -87,7 +87,7 @@ app.use('/api', apiLimiter);
 // ================= CORS =================
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://realsms.vercel.app',
+  'https://realsms-mauve.vercel.app',
   'https://www.realsms.store',
   'https://admin-realsms.vercel.app',
 ];
