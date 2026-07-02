@@ -32,49 +32,6 @@ const getServers = async (req, res) => {
   }
 };
 
-// /* =====================================================
-//    GET SERVICES WITH MARKUP
-// ===================================================== */
-// const getServices = async (req, res) => {
-//   try {
-//     const [servicesRes, pricingRes] = await Promise.all([
-//       axios.get(`${SMSPOOL_BASE_URL}/service/retrieve_all`, {
-//         params: { key: API_KEY },
-//       }),
-//       axios.get(`${SMSPOOL_BASE_URL}/request/pricing`, {
-//         params: { key: API_KEY },
-//       }),
-//     ]);
-
-//     const services = servicesRes.data.map((service) => {
-//       const countryPricing = pricingRes.data
-//         .filter((p) => String(p.service) === String(service.ID))
-//         .map((p) => {
-//           const basePriceNGN = Number(p.price) * USD_TO_NGN;
-//           const priceNGN = basePriceNGN * MARKUP_MULTIPLIER;
-
-//           return {
-//             countryID: String(p.country),
-//             pool: p.pool,
-//             basePriceNGN,
-//             priceNGN,
-//           };
-//         });
-
-//       return {
-//         ID: String(service.ID),
-//         name: service.name,
-//         pricing: countryPricing,
-//       };
-//     });
-
-//     res.json(services);
-//   } catch (err) {
-//     console.error("Service Error:", err.response?.data || err.message);
-//     res.status(500).json([]);
-//   }
-// };
-
 /* =====================================================
    GET SERVICES WITH LIVE PRICING
 ===================================================== */
@@ -859,9 +816,101 @@ const buyNumber = async (req, res) => {
 //   }
 // };
 
-// /* =====================================================
-//    GET OTP
-// ===================================================== */
+// // /* =====================================================
+// //    GET OTP
+// // ===================================================== */
+// const getOtp = async (req, res) => {
+//   const { orderid } = req.body;
+
+//   if (!orderid) {
+//     return res.status(400).json({
+//       success: 0,
+//       message: "Order ID is required",
+//     });
+//   }
+
+//   try {
+//     const order = await Order.findOne({ orderid });
+
+//     if (!order) {
+//       return res.status(404).json({
+//         success: 0,
+//         message: "Order not found",
+//       });
+//     }
+
+//     // ✅ If OTP already received, return immediately
+//     if (order.status === "received" && order.otp) {
+//       return res.json({
+//         success: 1,
+//         otp: order.otp,
+//         status: "received",
+//         message: "OTP already received",
+//       });
+//     }
+
+//     // Request OTP from SMSPool
+//     const response = await axios.post(
+//       `${SMSPOOL_BASE_URL}/sms/check`,
+//       null,
+//       {
+//         params: {
+//           key: API_KEY,
+//           orderid,
+//         },
+//       }
+//     );
+
+//     const status = Number(response.data.status);
+//     const sms = response.data.sms;
+
+//     // ✅ OTP received
+//     if (status === 3 && sms) {
+//       const otp = sms.match(/\d{4,6}/)?.[0];
+
+//       if (otp) {
+//         order.otp = otp;
+//         order.status = "received";
+//         await order.save();
+
+//         return res.json({
+//           success: 1,
+//           otp,
+//           status: "received",
+//           message: "OTP received successfully",
+//         });
+//       }
+//     }
+
+//     // ❌ Order expired
+//     if (status === 4) {
+//       order.status = "cancelled";
+//       await order.save();
+
+//       return res.json({
+//         success: 0,
+//         status: "cancelled",
+//         message: "Order expired or cancelled",
+//       });
+//     }
+
+//     // ⏳ Still waiting
+//     return res.json({
+//       success: 0,
+//       status: "waiting",
+//       message: "OTP not yet available",
+//     });
+
+//   } catch (err) {
+//     console.error("OTP Error:", err.response?.data || err.message);
+
+//     res.status(500).json({
+//       success: 0,
+//       message: "Failed to check OTP",
+//     });
+//   }
+// };
+
 const getOtp = async (req, res) => {
   const { orderid } = req.body;
 
@@ -873,7 +922,10 @@ const getOtp = async (req, res) => {
   }
 
   try {
-    const order = await Order.findOne({ orderid });
+    const order = await Order.findOne({
+      orderid,
+      user: req.user.id,
+    });
 
     if (!order) {
       return res.status(404).json({
@@ -882,8 +934,13 @@ const getOtp = async (req, res) => {
       });
     }
 
-    // ✅ If OTP already received, return immediately
-    if (order.status === "received" && order.otp) {
+    // If we're NOT waiting for a resent OTP,
+    // return cached OTP immediately.
+    if (
+      order.status === "received" &&
+      order.otp &&
+      !order.awaitingResend
+    ) {
       return res.json({
         success: 1,
         otp: order.otp,
@@ -892,7 +949,7 @@ const getOtp = async (req, res) => {
       });
     }
 
-    // Request OTP from SMSPool
+    // Always check SMSPool when waiting for resend
     const response = await axios.post(
       `${SMSPOOL_BASE_URL}/sms/check`,
       null,
@@ -905,58 +962,89 @@ const getOtp = async (req, res) => {
     );
 
     const status = Number(response.data.status);
-    const sms = response.data.sms;
+    const sms = response.data.sms || "";
 
-    // ✅ OTP received
+    // OTP received
     if (status === 3 && sms) {
       const otp = sms.match(/\d{4,6}/)?.[0];
 
       if (otp) {
-        order.otp = otp;
-        order.status = "received";
-        await order.save();
+
+        // New OTP after resend
+        if (
+          order.awaitingResend &&
+          otp !== order.otp
+        ) {
+          order.otp = otp;
+          order.awaitingResend = false;
+          order.status = "received";
+
+          await order.save();
+
+          return res.json({
+            success: 1,
+            otp,
+            status: "received",
+            message: "New OTP received",
+          });
+        }
+
+        // First OTP
+        if (!order.otp) {
+          order.otp = otp;
+          order.status = "received";
+
+          await order.save();
+        }
 
         return res.json({
           success: 1,
-          otp,
+          otp: order.otp,
           status: "received",
           message: "OTP received successfully",
         });
       }
     }
 
-    // ❌ Order expired
+    // Expired
     if (status === 4) {
       order.status = "cancelled";
+      order.awaitingResend = false;
+
       await order.save();
 
       return res.json({
         success: 0,
         status: "cancelled",
-        message: "Order expired or cancelled",
+        message: "Order expired",
       });
     }
 
-    // ⏳ Still waiting
+    // Waiting
     return res.json({
       success: 0,
       status: "waiting",
-      message: "OTP not yet available",
+      message: order.awaitingResend
+        ? "Waiting for new OTP..."
+        : "OTP not yet available",
     });
 
   } catch (err) {
-    console.error("OTP Error:", err.response?.data || err.message);
+    console.error(
+      "OTP Error:",
+      err.response?.data || err.message
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: 0,
       message: "Failed to check OTP",
     });
   }
 };
 
-/* =====================================================
-   RESEND OTP
-===================================================== */
+// /* =====================================================
+//    RESEND OTP
+// ===================================================== */
 // const resendOtp = async (req, res) => {
 //   const { orderid } = req.body;
 
@@ -968,12 +1056,11 @@ const getOtp = async (req, res) => {
 //   }
 
 //   try {
-//     // FIND ORDER
 //     const order = await Order.findOne({
 //       orderid,
 //       user: req.user.id,
 //     });
-
+ 
 //     if (!order) {
 //       return res.status(404).json({
 //         success: 0,
@@ -981,7 +1068,6 @@ const getOtp = async (req, res) => {
 //       });
 //     }
 
-//     // BLOCK INVALID STATUS
 //     if (["refunded", "cancelled"].includes(order.status)) {
 //       return res.status(400).json({
 //         success: 0,
@@ -989,16 +1075,8 @@ const getOtp = async (req, res) => {
 //       });
 //     }
 
-//     // OPTIONAL: PREVENT MULTIPLE RESENDS
-//     // if (order.resendRequested) {
-//     //   return res.status(400).json({
-//     //     success: 0,
-//     //     message: "OTP resend already requested",
-//     //   });
-//     // }
-
-//     // SEND REQUEST
-//     const response = await axios.post(
+//     // Step 1: resend
+//     const resendResponse = await axios.post(
 //       `${SMSPOOL_BASE_URL}/sms/resend`,
 //       null,
 //       {
@@ -1006,27 +1084,53 @@ const getOtp = async (req, res) => {
 //           key: API_KEY,
 //           orderid,
 //         },
-//         timeout: 15000,
 //       }
 //     );
 
-//     const data = response.data;
-
-//     if (data?.success === 1) {
-//       order.resendRequested = true;
-//       order.lastResendAt = new Date();
-
-//       await order.save();
-
-//       return res.status(200).json({
-//         success: 1,
-//         message: data.message || "OTP resent successfully",
+//     if (resendResponse.data?.success !== 1) {
+//       return res.status(400).json({
+//         success: 0,
+//         message: "Failed to resend OTP",
 //       });
 //     }
 
-//     return res.status(400).json({
-//       success: 0,
-//       message: data?.message || "Failed to resend OTP",
+//     // Step 2: wait briefly
+//     await new Promise(resolve => setTimeout(resolve, 3000));
+
+//     // Step 3: check for new OTP
+//     const checkResponse = await axios.post(
+//       `${SMSPOOL_BASE_URL}/sms/check`,
+//       null,
+//       {
+//         params: {
+//           key: API_KEY,
+//           orderid,
+//         },
+//       }
+//     );
+
+//     const sms = checkResponse.data?.sms;
+
+//     if (sms) {
+//       const newOtp = sms.match(/\d{4,6}/)?.[0];
+
+//       if (newOtp) {
+//         order.otp = newOtp;
+//         order.status = "received";
+//         order.lastResendAt = new Date();
+//         await order.save();
+
+//         return res.json({
+//           success: 1,
+//           otp: newOtp,
+//           message: "New OTP received",
+//         });
+//       }
+//     }
+
+//     return res.json({
+//       success: 1,
+//       message: "OTP resend requested, waiting for new code",
 //     });
 
 //   } catch (err) {
@@ -1057,7 +1161,7 @@ const resendOtp = async (req, res) => {
       orderid,
       user: req.user.id,
     });
- 
+
     if (!order) {
       return res.status(404).json({
         success: 0,
@@ -1072,7 +1176,17 @@ const resendOtp = async (req, res) => {
       });
     }
 
-    // Step 1: resend
+    // Prevent spam (30 seconds)
+    if (
+      order.lastResendAt &&
+      Date.now() - new Date(order.lastResendAt).getTime() < 30000
+    ) {
+      return res.status(429).json({
+        success: 0,
+        message: "Please wait 30 seconds before requesting another resend.",
+      });
+    }
+
     const resendResponse = await axios.post(
       `${SMSPOOL_BASE_URL}/sms/resend`,
       null,
@@ -1087,47 +1201,20 @@ const resendOtp = async (req, res) => {
     if (resendResponse.data?.success !== 1) {
       return res.status(400).json({
         success: 0,
-        message: "Failed to resend OTP",
+        message:
+          resendResponse.data?.message || "Failed to resend OTP",
       });
     }
 
-    // Step 2: wait briefly
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Tell getOtp() to keep checking SMSPool
+    order.awaitingResend = true;
+    order.lastResendAt = new Date();
 
-    // Step 3: check for new OTP
-    const checkResponse = await axios.post(
-      `${SMSPOOL_BASE_URL}/sms/check`,
-      null,
-      {
-        params: {
-          key: API_KEY,
-          orderid,
-        },
-      }
-    );
-
-    const sms = checkResponse.data?.sms;
-
-    if (sms) {
-      const newOtp = sms.match(/\d{4,6}/)?.[0];
-
-      if (newOtp) {
-        order.otp = newOtp;
-        order.status = "received";
-        order.lastResendAt = new Date();
-        await order.save();
-
-        return res.json({
-          success: 1,
-          otp: newOtp,
-          message: "New OTP received",
-        });
-      }
-    }
+    await order.save();
 
     return res.json({
       success: 1,
-      message: "OTP resend requested, waiting for new code",
+      message: "OTP resend requested successfully",
     });
 
   } catch (err) {
