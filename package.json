@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"No tests specified\""
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -18,18 +16,15 @@
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
-    "i18n-iso-countries": "^7.14.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
+    "i18n-iso-countries": "^7.14.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",
     "multer": "^2.2.0",
     "multer-storage-cloudinary": "^4.0.0",
     "nanoid": "^5.1.7",
     "node-cron": "^4.2.1"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.10"
   }
 }
