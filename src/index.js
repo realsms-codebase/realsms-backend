@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const connectDB = require("./config/db");
 require('dotenv').config();
 
 // ROUTES
@@ -146,18 +147,24 @@ app.use("/api/korapay", paymentLimiter, korapayRoutes);
 app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
 
 // ================= MONGODB =================
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch((err) =>
-    console.error('❌ MongoDB Connection Error:', err.message)
-  );
+// mongoose
+//   .connect(process.env.MONGODB_URI)
+//   .then(() => console.log('✅ MongoDB Connected'))
+//   .catch((err) =>
+//     console.error('❌ MongoDB Connection Error:', err.message)
+//   );
 
-// Auto-reconnect
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected... reconnecting');
-  mongoose.connect(process.env.MONGODB_URI);
-});
+// // Auto-reconnect
+// mongoose.connection.on('disconnected', () => {
+//   console.log('MongoDB disconnected... reconnecting');
+//   mongoose.connect(process.env.MONGODB_URI);
+// });
+
+connectDB()
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) =>
+    console.error("❌ MongoDB Error:", err.message)
+  );
 
 // ================= GLOBAL ERROR HANDLER =================
 app.use((err, req, res, next) => {
