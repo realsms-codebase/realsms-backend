@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"No tests specified\""
   },
   "keywords": [],
   "author": "",
@@ -26,5 +28,8 @@
     "multer-storage-cloudinary": "^4.0.0",
     "nanoid": "^5.1.7",
     "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
