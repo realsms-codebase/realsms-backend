@@ -86,7 +86,7 @@ const webhookLimiter = rateLimit({
 app.use('/api', apiLimiter);
 
 // ================= CORS =================
-const allowedOrigins = [
+const allowedOrigins = [ 
   'http://localhost:3000',
   'https://realsms-backend.onrender.com',
   'https://www.realsms.store',
