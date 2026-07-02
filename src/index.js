@@ -1,6 +1,6 @@
 // index.js
 const express = require('express');
-// const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -146,52 +146,17 @@ app.use("/api/paystack", paymentLimiter, paystackRoutes);
 app.use("/api/korapay", paymentLimiter, korapayRoutes);
 app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
 
-// ================= MONGODB =================
-// mongoose
-//   .connect(process.env.MONGODB_URI)
-//   .then(() => console.log('✅ MongoDB Connected'))
-//   .catch((err) =>
-//     console.error('❌ MongoDB Connection Error:', err.message)
-//   );
-
-// // Auto-reconnect
-// mongoose.connection.on('disconnected', () => {
-//   console.log('MongoDB disconnected... reconnecting');
-//   mongoose.connect(process.env.MONGODB_URI);
-// });
-
-// connectDB()
-//   .then(() => console.log("✅ MongoDB Connected"))
-//   .catch((err) =>
-//     console.error("❌ MongoDB Error:", err.message)
-//   );
-
-// // ================= GLOBAL ERROR HANDLER =================
+// // // ================= GLOBAL ERROR HANDLER =================
 // app.use((err, req, res, next) => {
-//   console.error('SERVER ERROR:', err.message);
+//   console.error(
+//     "SERVER ERROR:",
+//     err.stack
+//   );
+
 //   res.status(500).json({
-//     error: 'Something went wrong',
-//     ...(process.env.NODE_ENV === "development" && { details: err.message })
+//     error: "Something went wrong"
 //   });
 // });
-
-// // ================= START SERVER =================
-// const PORT = process.env.PORT || 5000;
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server running on port ${PORT}`);
-// });
-
-// // ================= GLOBAL ERROR HANDLER =================
-app.use((err, req, res, next) => {
-  console.error(
-    "SERVER ERROR:",
-    err.stack
-  );
-
-  res.status(500).json({
-    error: "Something went wrong"
-  });
-});
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
