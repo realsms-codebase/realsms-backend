@@ -1,6 +1,6 @@
 // index.js
 const express = require('express');
-const mongoose = require('mongoose');
+// const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -180,6 +180,18 @@ app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
 // app.listen(PORT, () => {
 //   console.log(`🚀 Server running on port ${PORT}`);
 // });
+
+// // ================= GLOBAL ERROR HANDLER =================
+app.use((err, req, res, next) => {
+  console.error(
+    "SERVER ERROR:",
+    err.stack
+  );
+
+  res.status(500).json({
+    error: "Something went wrong"
+  });
+});
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
