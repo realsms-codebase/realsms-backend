@@ -27,8 +27,8 @@ const tutorialRoutes = require("./routes/tutorialRoutes");
 
 
 // CRON JOBS
-// require("./cron/transactionCleanup");
-// require("./cron/orderCleanup");
+require("./cron/transactionCleanup");
+require("./cron/orderCleanup");
 // require("./cron/broadcastCron");
 
 const app = express();
