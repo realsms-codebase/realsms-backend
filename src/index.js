@@ -27,8 +27,8 @@ const tutorialRoutes = require("./routes/tutorialRoutes");
 
 
 // CRON JOBS
-require("./cron/transactionCleanup");
-require("./cron/orderCleanup");
+// require("./cron/transactionCleanup");
+// require("./cron/orderCleanup");
 // require("./cron/broadcastCron");
 
 const app = express();
@@ -144,18 +144,6 @@ app.use("/api/flutterwave/webhook", webhookLimiter, flutterwaveRoutes);
 app.use("/api/paystack", paymentLimiter, paystackRoutes);
 app.use("/api/korapay", paymentLimiter, korapayRoutes);
 app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
-
-// // // ================= GLOBAL ERROR HANDLER =================
-// app.use((err, req, res, next) => {
-//   console.error(
-//     "SERVER ERROR:",
-//     err.stack
-//   );
-
-//   res.status(500).json({
-//     error: "Something went wrong"
-//   });
-// });
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
