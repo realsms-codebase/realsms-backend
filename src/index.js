@@ -113,7 +113,7 @@ app.get('/', (req, res) => {
   res.json({ message: 'RealSMS API is running 🚀' });
 });
 
-================= ROUTES =================
+//================= ROUTES =================
 
 // AUTH (strict limiter)
 app.use('/api/auth', authLimiter, authRoutes);
