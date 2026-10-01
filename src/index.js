@@ -8,22 +8,22 @@ const connectDB = require("./config/db");
 require('dotenv').config();
 
 // ROUTES
-// const authRoutes = require('./routes/authRoutes');
-// const usdtRoutes = require('./routes/usdtRoutes');
-// const walletRoutes = require('./routes/walletRoutes');
-// const paystackRoutes = require("./routes/paystackRoutes");
-// const korapayRoutes = require("./routes/korapayRoutes");
-// const flutterwaveRoutes = require("./routes/flutterwaveRoutes");
-// const smspoolRoutes = require("./routes/smspoolRoutes");
-// const transactionRoutes = require("./routes/transactionsRoutes");
-// const adminAuthRoutes = require("./routes/adminAuthRoutes");
-// const adminRoutes = require("./routes/adminRoutes");
-// const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
-// const logRoutes = require("./routes/logRoutes");
-// const broadcastRoutes = require("./routes/broadcastRoutes");
-// const supportRoutes = require("./routes/supportRoutes");
-// const activityRoutes = require("./routes/activityRoutes");
-// const tutorialRoutes = require("./routes/tutorialRoutes");
+const authRoutes = require('./routes/authRoutes');
+const usdtRoutes = require('./routes/usdtRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const paystackRoutes = require("./routes/paystackRoutes");
+const korapayRoutes = require("./routes/korapayRoutes");
+const flutterwaveRoutes = require("./routes/flutterwaveRoutes");
+const smspoolRoutes = require("./routes/smspoolRoutes");
+const transactionRoutes = require("./routes/transactionsRoutes");
+const adminAuthRoutes = require("./routes/adminAuthRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
+const logRoutes = require("./routes/logRoutes");
+const broadcastRoutes = require("./routes/broadcastRoutes");
+const supportRoutes = require("./routes/supportRoutes");
+const activityRoutes = require("./routes/activityRoutes");
+const tutorialRoutes = require("./routes/tutorialRoutes");
 
 
 // CRON JOBS
@@ -115,23 +115,23 @@ app.get('/', (req, res) => {
 
 //================= ROUTES =================
 
-// // AUTH (strict limiter)
-// app.use('/api/auth', authLimiter, authRoutes);
+// AUTH (strict limiter)
+app.use('/api/auth', authLimiter, authRoutes);
 
-// // WALLET / USDT / SMS / ADMIN
-// app.use('/api/usdt', usdtRoutes);
-// app.use('/api/wallet', walletRoutes);
-// app.use('/api/transactions', transactionRoutes);
-// app.use('/api/smspool', smspoolRoutes);
-// app.use("/api/admin/auth", adminAuthRoutes);
-// app.use("/api/log", logRoutes);
-// app.use("/api/broadcast", broadcastRoutes);
-// app.use("/api/support", supportRoutes);
-// app.use("/api/activity", activityRoutes);
-// app.use("/api/tutorials", tutorialRoutes);
+// WALLET / USDT / SMS / ADMIN
+app.use('/api/usdt', usdtRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/smspool', smspoolRoutes);
+app.use("/api/admin/auth", adminAuthRoutes);
+app.use("/api/log", logRoutes);
+app.use("/api/broadcast", broadcastRoutes);
+app.use("/api/support", supportRoutes);
+app.use("/api/activity", activityRoutes);
+app.use("/api/tutorials", tutorialRoutes);
 
-// app.use("/api/admin", adminRoutes);
-// app.use("/api/admin/analytics", adminAnalyticsRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
 // // ================= PAYMENT WEBHOOKS (SAFE) ================= 
 // // IMPORTANT: Place webhook routes BEFORE paymentLimiter routes
