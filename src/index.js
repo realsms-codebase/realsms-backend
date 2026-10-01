@@ -8,22 +8,22 @@ const connectDB = require("./config/db");
 require('dotenv').config();
 
 // ROUTES
-const authRoutes = require('./routes/authRoutes');
-const usdtRoutes = require('./routes/usdtRoutes');
-const walletRoutes = require('./routes/walletRoutes');
-const paystackRoutes = require("./routes/paystackRoutes");
-const korapayRoutes = require("./routes/korapayRoutes");
-const flutterwaveRoutes = require("./routes/flutterwaveRoutes");
-const smspoolRoutes = require("./routes/smspoolRoutes");
-const transactionRoutes = require("./routes/transactionsRoutes");
-const adminAuthRoutes = require("./routes/adminAuthRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
-const logRoutes = require("./routes/logRoutes");
-const broadcastRoutes = require("./routes/broadcastRoutes");
-const supportRoutes = require("./routes/supportRoutes");
-const activityRoutes = require("./routes/activityRoutes");
-const tutorialRoutes = require("./routes/tutorialRoutes");
+// const authRoutes = require('./routes/authRoutes');
+// const usdtRoutes = require('./routes/usdtRoutes');
+// const walletRoutes = require('./routes/walletRoutes');
+// const paystackRoutes = require("./routes/paystackRoutes");
+// const korapayRoutes = require("./routes/korapayRoutes");
+// const flutterwaveRoutes = require("./routes/flutterwaveRoutes");
+// const smspoolRoutes = require("./routes/smspoolRoutes");
+// const transactionRoutes = require("./routes/transactionsRoutes");
+// const adminAuthRoutes = require("./routes/adminAuthRoutes");
+// const adminRoutes = require("./routes/adminRoutes");
+// const adminAnalyticsRoutes = require("./routes/adminAnalyticsRoutes");
+// const logRoutes = require("./routes/logRoutes");
+// const broadcastRoutes = require("./routes/broadcastRoutes");
+// const supportRoutes = require("./routes/supportRoutes");
+// const activityRoutes = require("./routes/activityRoutes");
+// const tutorialRoutes = require("./routes/tutorialRoutes");
 
 
 // CRON JOBS
