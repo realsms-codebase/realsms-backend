@@ -133,17 +133,17 @@ app.use("/api/tutorials", tutorialRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
-// // ================= PAYMENT WEBHOOKS (SAFE) ================= 
-// // IMPORTANT: Place webhook routes BEFORE paymentLimiter routes
+// ================= PAYMENT WEBHOOKS (SAFE) ================= 
+// IMPORTANT: Place webhook routes BEFORE paymentLimiter routes
 
-// app.use("/api/paystack/webhook", webhookLimiter, paystackRoutes);
-// app.use("/api/korapay/webhook", webhookLimiter, korapayRoutes);
-// app.use("/api/flutterwave/webhook", webhookLimiter, flutterwaveRoutes);
+app.use("/api/paystack/webhook", webhookLimiter, paystackRoutes);
+app.use("/api/korapay/webhook", webhookLimiter, korapayRoutes);
+app.use("/api/flutterwave/webhook", webhookLimiter, flutterwaveRoutes);
 
-// // ================= PAYMENT INITIALIZATION (STRICT) =================
-// app.use("/api/paystack", paymentLimiter, paystackRoutes);
-// app.use("/api/korapay", paymentLimiter, korapayRoutes);
-// app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
+// ================= PAYMENT INITIALIZATION (STRICT) =================
+app.use("/api/paystack", paymentLimiter, paystackRoutes);
+app.use("/api/korapay", paymentLimiter, korapayRoutes);
+app.use("/api/flutterwave", paymentLimiter, flutterwaveRoutes);
 
 // ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
