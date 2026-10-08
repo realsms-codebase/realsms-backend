@@ -26,5 +26,6 @@
     "multer-storage-cloudinary": "^4.0.0",
     "nanoid": "^5.1.7",
     "node-cron": "^4.2.1"
+    "resend": "^6.18.1",
   }
 }
