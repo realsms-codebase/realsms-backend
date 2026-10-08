@@ -2,8 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-
-const sendEmail = require("../utils/sendEmail");
+import { sendEmail } from "../utils/sendEmail.js";
 
 // =====================
 // JWT TOKEN HELPER
