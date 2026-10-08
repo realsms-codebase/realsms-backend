@@ -1,8 +1,6 @@
 import User from "../models/User.js";
 import BroadcastProgress from "../models/BroadcastProgress.js";
-// import { sendEmail } from "../utils/sendEmail.js";
-
-const sendEmail = require("../utils/sendEmail");
+import { sendEmail } from "../utils/sendEmail.js";
 
 export const sendBroadcastEmail = async (req, res) => {
   try {
