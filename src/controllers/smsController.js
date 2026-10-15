@@ -10,6 +10,197 @@ const MARKUP_PERCENT = 70;
 const MARKUP_MULTIPLIER = 1 + MARKUP_PERCENT / 100;
 
 /* =====================================================
+   SMSPOOL SERVICES CACHE
+===================================================== */
+
+const SERVICES_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+const SERVICES_REQUEST_TIMEOUT = 15000;
+
+let servicesCache = {
+  data: null,
+  updatedAt: 0,
+};
+
+let servicesRefreshPromise = null;
+
+
+/* =====================================================
+   FETCH AND BUILD SERVICES CACHE
+===================================================== */
+
+const refreshServicesCache = async () => {
+  // Prevent simultaneous requests from refreshing the
+  // same provider data multiple times.
+  if (servicesRefreshPromise) {
+    return servicesRefreshPromise;
+  }
+
+  servicesRefreshPromise = (async () => {
+    try {
+      const [servicesRes, pricingRes] = await Promise.all([
+        axios.get(
+          `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+          {
+            params: { key: API_KEY },
+            timeout: SERVICES_REQUEST_TIMEOUT,
+          }
+        ),
+
+        axios.get(
+          `${SMSPOOL_BASE_URL}/request/pricing`,
+          {
+            params: { key: API_KEY },
+            timeout: SERVICES_REQUEST_TIMEOUT,
+          }
+        ),
+      ]);
+
+      const rawServices = servicesRes.data;
+      const rawPricing = pricingRes.data;
+
+      if (
+        !Array.isArray(rawServices) ||
+        !Array.isArray(rawPricing)
+      ) {
+        throw new Error("Invalid SMSPool services or pricing response");
+      }
+
+      // Group prices once instead of scanning the complete
+      // pricing list separately for every service.
+      const pricingMap = new Map();
+
+      for (const item of rawPricing) {
+        if (
+          item.service == null ||
+          item.country == null ||
+          item.price == null ||
+          item.pool == null
+        ) {
+          continue;
+        }
+
+        const basePrice = Number(item.price);
+
+        if (!Number.isFinite(basePrice) || basePrice <= 0) {
+          continue;
+        }
+
+        const countryId = String(item.country);
+        const serviceId = String(item.service);
+
+        const basePriceNGN = basePrice * USD_TO_NGN;
+
+        const priceNGN = Math.ceil(
+          basePriceNGN * MARKUP_MULTIPLIER
+        );
+
+        let countryMap = pricingMap.get(serviceId);
+
+        if (!countryMap) {
+          countryMap = new Map();
+          pricingMap.set(serviceId, countryMap);
+        }
+
+        const current = countryMap.get(countryId);
+
+        // Keep the cheapest price and its matching pool.
+        if (!current || priceNGN < current.priceNGN) {
+          countryMap.set(countryId, {
+            countryID: countryId,
+            pool: item.pool,
+            basePriceNGN,
+            priceNGN,
+          });
+        }
+      }
+
+      const services = rawServices.map((service) => {
+        const countryMap = pricingMap.get(String(service.ID));
+
+        return {
+          ID: String(service.ID),
+          name: service.name,
+          pricing: countryMap
+            ? Array.from(countryMap.values())
+            : [],
+        };
+      });
+
+      // Update the cache only after BOTH provider requests
+      // and the data transformation succeed.
+      servicesCache = {
+        data: services,
+        updatedAt: Date.now(),
+      };
+
+      console.log(
+        `SMSPool services cache refreshed: ${services.length} services`
+      );
+
+      return services;
+    } catch (err) {
+      console.error(
+        "SMSPool cache refresh failed:",
+        err.response?.data || err.message
+      );
+
+      throw err;
+    } finally {
+      servicesRefreshPromise = null;
+    }
+  })();
+
+  return servicesRefreshPromise;
+};
+
+
+/* =====================================================
+   GET SERVICES — STALE-WHILE-REVALIDATE
+===================================================== */
+
+const getServices = async (req, res) => {
+  res.set("Cache-Control", "no-store");
+
+  const cacheAge = Date.now() - servicesCache.updatedAt;
+
+  const hasCache = Array.isArray(servicesCache.data);
+
+  const cacheIsFresh =
+    hasCache && cacheAge < SERVICES_CACHE_TTL;
+
+  // Fast path: fresh cache, no external requests.
+  if (cacheIsFresh) {
+    return res.json(servicesCache.data);
+  }
+
+  // Stale cache: return immediately and refresh in
+  // the background. Users do not wait for SMSPool.
+  if (hasCache) {
+    res.json(servicesCache.data);
+
+    // Errors are handled inside this background task.
+    refreshServicesCache().catch(() => {});
+
+    return;
+  }
+
+  // Cold start: no cache exists yet. The first request
+  // must populate the cache from SMSPool.
+  try {
+    const services = await refreshServicesCache();
+
+    return res.json(services);
+  } catch (err) {
+    return res.status(502).json({
+      success: 0,
+      message:
+        "Services are temporarily unavailable. Please try again shortly.",
+    });
+  }
+};
+
+/* =====================================================
    GET ALL COUNTRIES
 ===================================================== */
 const getServers = async (req, res) => {
@@ -32,92 +223,92 @@ const getServers = async (req, res) => {
   }
 };
 
-/* =====================================================
-   GET SERVICES WITH LIVE PRICING
-===================================================== */
-const getServices = async (req, res) => {
-  try {
-    // Prevent browser/CDN caching
-    res.set("Cache-Control", "no-store");
+// /* =====================================================
+//    GET SERVICES WITH LIVE PRICING
+// ===================================================== */
+// const getServices = async (req, res) => {
+//   try {
+//     // Prevent browser/CDN caching
+//     res.set("Cache-Control", "no-store");
 
-    const [servicesRes, pricingRes] = await Promise.all([
-      axios.get(
-        `${SMSPOOL_BASE_URL}/service/retrieve_all`,
-        {
-          params: { key: API_KEY },
-        }
-      ),
-      axios.get(
-        `${SMSPOOL_BASE_URL}/request/pricing`,
-        {
-          params: { key: API_KEY },
-        }
-      ),
-    ]);
+//     const [servicesRes, pricingRes] = await Promise.all([
+//       axios.get(
+//         `${SMSPOOL_BASE_URL}/service/retrieve_all`,
+//         {
+//           params: { key: API_KEY },
+//         }
+//       ),
+//       axios.get(
+//         `${SMSPOOL_BASE_URL}/request/pricing`,
+//         {
+//           params: { key: API_KEY },
+//         }
+//       ),
+//     ]);
 
-    const services = servicesRes.data.map((service) => {
-      // Get all pricing records for this service
-      const servicePricing = pricingRes.data.filter(
-        (p) =>
-          String(p.service) ===
-          String(service.ID)
-      );
+//     const services = servicesRes.data.map((service) => {
+//       // Get all pricing records for this service
+//       const servicePricing = pricingRes.data.filter(
+//         (p) =>
+//           String(p.service) ===
+//           String(service.ID)
+//       );
 
-      // Group by country and keep lowest price
-      const pricingByCountry = {};
+//       // Group by country and keep lowest price
+//       const pricingByCountry = {};
 
-      servicePricing.forEach((p) => {
-        const countryId = String(p.country);
+//       servicePricing.forEach((p) => {
+//         const countryId = String(p.country);
 
-        const basePriceNGN =
-          Number(p.price) * USD_TO_NGN;
+//         const basePriceNGN =
+//           Number(p.price) * USD_TO_NGN;
 
-        const sellingPriceNGN =
-          basePriceNGN * MARKUP_MULTIPLIER;
+//         const sellingPriceNGN =
+//           basePriceNGN * MARKUP_MULTIPLIER;
 
-        const item = {
-          countryID: countryId,
-          pool: p.pool,
-          basePriceNGN,
-          priceNGN: Math.ceil(
-            sellingPriceNGN
-          ),
-        };
+//         const item = {
+//           countryID: countryId,
+//           pool: p.pool,
+//           basePriceNGN,
+//           priceNGN: Math.ceil(
+//             sellingPriceNGN
+//           ),
+//         };
 
-        // Keep cheapest price only
-        if (
-          !pricingByCountry[countryId] ||
-          item.priceNGN <
-            pricingByCountry[countryId].priceNGN
-        ) {
-          pricingByCountry[countryId] =
-            item;
-        }
-      });
+//         // Keep cheapest price only
+//         if (
+//           !pricingByCountry[countryId] ||
+//           item.priceNGN <
+//             pricingByCountry[countryId].priceNGN
+//         ) {
+//           pricingByCountry[countryId] =
+//             item;
+//         }
+//       });
 
-      return {
-        ID: String(service.ID),
-        name: service.name,
+//       return {
+//         ID: String(service.ID),
+//         name: service.name,
 
-        // convert object → array
-        pricing: Object.values(
-          pricingByCountry
-        ),
-      };
-    });
+//         // convert object → array
+//         pricing: Object.values(
+//           pricingByCountry
+//         ),
+//       };
+//     });
 
-    res.json(services);
+//     res.json(services);
 
-  } catch (err) {
-    console.error(
-      "Service Error:",
-      err.response?.data ||
-      err.message
-    );
+//   } catch (err) {
+//     console.error(
+//       "Service Error:",
+//       err.response?.data ||
+//       err.message
+//     );
 
-    return res.status(500).json([]);
-  }
-};
+//     return res.status(500).json([]);
+//   }
+// };
 
 // /* =====================================================
 //    BUY NUMBER (UPDATED)
